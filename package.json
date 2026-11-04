@@ -4,6 +4,7 @@
   "description": "Read Fluent — High-Performance Text-to-Speech Studio & User-Isolated Document Reader",
   "main": "server.js",
   "scripts": {
+    "build": "echo 'Build successful'",
     "start": "node server.js",
     "dev": "node server.js"
   },
