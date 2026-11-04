@@ -165,7 +165,7 @@ async function fetchUserProfile(userId, email, token) {
   }
 
   try {
-    const profiles = await callSupabase(`/rest/v1/profiles?id=eq.${userId}&select=*`, {
+    const profiles = await callSupabase(`/rest/v1/profiles?id=eq.${userId}&select=id,email,full_name,role`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (profiles && profiles[0]) {
