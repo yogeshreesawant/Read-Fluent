@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Read Fluent — Advanced AI Text-to-Speech & Document Reader</title>
+  <meta name="description" content="Read Fluent is a high-performance text-to-speech reader supporting large files up to 1GB (TXT, PDF, Word). Instant playback, speed controls, seek scrubbing, and local library storage.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- PDF.js for client-side PDF text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Mammoth.js for client-side Word (.docx) text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- Supabase JS Client v2 (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase Config & Client Service -->
+  <script src="config.js"></script>
+  <script src="supabase-client.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Header -->
+    <header class="top-header" role="banner">
+      <div class="header-left">
+        <div class="brand-logo" id="brandLogo">
+          <div class="logo-icon-wrap">
+            <svg class="logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6366F1" />
+                  <stop offset="50%" stop-color="#8B5CF6" />
+                  <stop offset="100%" stop-color="#EC4899" />
+                </linearGradient>
+              </defs>
+              <rect width="40" height="40" rx="10" fill="url(#logoGrad)" />
+              <!-- Wave & Book graphic -->
+              <path d="M11 26V14C11 14 14 12 20 14V26C14 24 11 26 11 26Z" fill="white" fill-opacity="0.9" />
+              <path d="M29 26V14C29 14 26 12 20 14V26C26 24 29 26 29 26Z" fill="white" fill-opacity="0.75" />
+              <path d="M20 14V26" stroke="#4F46E5" stroke-width="1.5" stroke-linecap="round" />
+              <!-- Audio ripples -->
+              <circle cx="20" cy="10" r="1.5" fill="#FDF2F8" />
+              <path d="M15 9C17.5 7.5 22.5 7.5 25 9" stroke="#FDF2F8" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+            <span class="logo-pulse"></span>
+          </div>
+          <div class="brand-text">
+            <h1 class="brand-title">Read <span class="gradient-text">Fluent</span></h1>
+            <span class="brand-tagline">Intelligent Speech & Document Studio</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Document Stats -->
+      <div class="header-center">
+        <div class="doc-stats" id="docStats">
+          <div class="stat-item" title="Total Word Count">
+            <span class="stat-icon">📝</span>
+            <span class="stat-value" id="wordCount">0</span>
+            <span class="stat-label">words</span>
+          </div>
+          <div class="stat-separator"></div>
+          <div class="stat-item" title="Estimated Listening Time">
+            <span class="stat-icon">⏱️</span>
+            <span class="stat-value" id="readTime">0m</span>
+            <span class="stat-label">listen</span>
+          </div>
+          <div class="stat-separator"></div>
+          <div class="stat-item" title="Characters">
+            <span class="stat-icon">🔤</span>
+            <span class="stat-value" id="charCount">0</span>
+            <span class="stat-label">chars</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="header-right">
+        <!-- Hidden file input -->
+        <input type="file" id="fileInput" accept=".txt,.pdf,.docx,.doc,.md,.rtf,.log" style="display:none;" />
+        
+        <button class="btn btn-secondary" id="btnUpload" title="Upload TXT, PDF, Word Document (up to 1GB)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span>Upload File</span>
+        </button>
+
+        <button class="btn btn-secondary" id="btnDownload" title="Download content as local text file">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Download</span>
+        </button>
+
+        <button class="btn btn-icon btn-secondary" id="btnLibraryToggle" title="Open Saved Library">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          <span class="badge" id="libraryCountBadge">0</span>
+        </button>
+
+        <button class="btn btn-icon btn-secondary" id="btnThemeToggle" title="Toggle Light/Dark Theme">
+          <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+
+        <div class="header-divider-v"></div>
+
+        <!-- Supabase Cloud Connection Indicator / Quick Setup -->
+        <button class="btn btn-secondary btn-supabase-status" id="btnSupabaseSettingsToggle" title="Supabase Cloud Settings">
+          <span class="status-indicator-dot" id="supabaseStatusDot"></span>
+          <span class="status-btn-text">Supabase</span>
+        </button>
+
+        <!-- Auth Button: Shown when logged out -->
+        <button class="btn btn-primary btn-auth-trigger" id="btnAuthOpen" title="Sign In or Create Account">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span>Sign In</span>
+        </button>
+
+        <!-- User Profile Dropdown: Shown when logged in -->
+        <div class="user-menu-container" id="userMenuContainer" style="display: none;">
+          <button class="btn btn-secondary user-menu-trigger" id="btnUserMenuTrigger" aria-expanded="false" aria-haspopup="true">
+            <span class="user-avatar-badge" id="headerUserAvatar">U</span>
+            <span class="user-email-snippet" id="headerUserEmail">user@example.com</span>
+            <span class="user-role-tag" id="headerUserRole">User</span>
+            <svg class="chevron-down" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          
+          <div class="user-dropdown-popover" id="userDropdownPopover" style="display: none;" role="menu">
+            <div class="user-dropdown-userinfo">
+              <div class="user-avatar-large" id="dropdownUserAvatar">U</div>
+              <div class="user-meta">
+                <strong id="dropdownUserFullName">Full Name</strong>
+                <span id="dropdownUserEmailText">user@example.com</span>
+                <span class="role-pill" id="dropdownUserRolePill">Standard User</span>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" id="btnMenuOpenLibrary" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              <span>My Cloud Library</span>
+            </button>
+            <button class="dropdown-item btn-admin-item" id="btnMenuOpenAdmin" style="display: none;" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span>Admin Management</span>
+              <span class="admin-spark-badge">Admin</span>
+            </button>
+            <button class="dropdown-item" id="btnMenuSupabaseSettings" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              <span>Backend Settings</span>
+            </button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item text-danger" id="btnMenuSignOut" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Reader Workspace -->
+    <main class="main-workspace">
+      <!-- Toolbar above editor -->
+      <section class="editor-toolbar">
+        <div class="toolbar-left">
+          <div class="view-mode-tabs" role="tablist">
+            <button class="tab-btn active" id="tabEditor" role="tab" aria-selected="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              <span>Edit & Paste</span>
+            </button>
+            <button class="tab-btn" id="tabFluent" role="tab" aria-selected="false">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              <span>Fluent Reader Mode</span>
+              <span class="pill-live">Synced</span>
+            </button>
+          </div>
+          <span class="doc-title-display" id="currentDocTitle">Untitled Document</span>
+        </div>
+
+        <div class="toolbar-right">
+          <button class="tool-btn" id="btnPasteClipboard" title="Paste from clipboard">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+            </svg>
+            <span>Paste</span>
+          </button>
+          <button class="tool-btn" id="btnCopyText" title="Copy all text">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <span>Copy</span>
+          </button>
+          <button class="tool-btn" id="btnClearText" title="Clear text field">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span>Clear</span>
+          </button>
+          <button class="tool-btn btn-save-top" id="btnSaveLibraryTop" title="Save document & audio to Library">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            <span>Save to Library</span>
+          </button>
+          <button class="tool-btn" id="btnSampleText" title="Load sample document">
+            <span>Sample Text</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Editor Card / Container with Drag & Drop -->
+      <section class="editor-container" id="dropZone">
+        <!-- Direct Textarea Editor -->
+        <div class="editor-pane" id="editorPane">
+          <textarea 
+            id="textContent" 
+            class="main-textarea" 
+            placeholder="Paste your content here directly, or click 'Upload File' / drag & drop any TXT, PDF, or Word document (supports files up to 1GB)..."
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <!-- Fluent Reading Mode (Interactive Karaoke / Sentence Sync) -->
+        <div class="fluent-pane" id="fluentPane" style="display:none;">
+          <div class="fluent-content-scroller" id="fluentContent">
+            <div class="fluent-empty-placeholder">
+              <p>No content loaded yet. Paste text or upload a document to begin fluent reading.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drag & Drop Visual Overlay -->
+        <div class="drag-overlay" id="dragOverlay">
+          <div class="drag-message">
+            <div class="drag-icon-circle">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <h3>Drop your document here</h3>
+            <p>Supports TXT, PDF, Word (.docx) up to 1GB with chunked streaming</p>
+          </div>
+        </div>
+
+        <!-- Loading / Parsing Progress Modal / Overlay -->
+        <div class="parsing-overlay" id="parsingOverlay" style="display:none;">
+          <div class="parsing-card">
+            <div class="parsing-spinner"></div>
+            <h3 id="parsingTitle">Processing Document...</h3>
+            <p id="parsingDetails">Reading file chunks into memory...</p>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-stats">
+              <span id="parsingPercent">0%</span>
+              <span id="parsingBytes">0 MB / 0 MB</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnCancelParsing" style="margin-top: 14px;">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Memory / File Warning Banner -->
+        <div class="memory-alert" id="memoryAlert" style="display:none;">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-content">
+            <strong id="alertHeading">Large File Notification:</strong>
+            <span id="alertMessage">This file is very large. Chunked memory streaming is active to ensure zero browser lags.</span>
+          </div>
+          <button class="alert-close" id="btnCloseAlert" aria-label="Close notification">&times;</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Sleek Master Audio Player Dock -->
+    <footer class="player-dock" id="playerDock" role="region" aria-label="Audio Playback Controls">
+      <div class="player-inner">
+        <!-- Row 1: The Sleek Seeking Scrubber Bar -->
+        <div class="sleek-scrubber-row">
+          <div class="time-display time-current" id="timeCurrent">0:00</div>
+          
+          <div class="scrubber-track-container" id="scrubberContainer">
+            <input 
+              type="range" 
+              class="sleek-slider sleek-seek" 
+              id="seekSlider" 
+              min="0" 
+              max="1000" 
+              value="0" 
+              step="1"
+              aria-label="Seek through document content"
+            />
+            <div class="scrubber-fill" id="scrubberFill"></div>
+            <div class="scrubber-hover-preview" id="scrubberPreview">0%</div>
+          </div>
+
+          <div class="time-display time-total" id="timeTotal">0:00</div>
+          <div class="sentence-counter-badge" id="sentenceBadge">0 / 0 sent.</div>
+        </div>
+
+        <!-- Row 2: Master Controls, Speed Slider, Voice Picker, Save to Library -->
+        <div class="controls-row">
+          <!-- Left: Voice & Audio Tuning -->
+          <div class="controls-group controls-left">
+            <div class="voice-selector-wrap">
+              <label for="voiceSelect" class="control-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+                <span>Voice</span>
+              </label>
+              <select id="voiceSelect" class="sleek-select" aria-label="Choose speech voice">
+                <option value="">Loading system voices...</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Center: Core Playback Buttons -->
+          <div class="controls-group controls-center">
+            <!-- Backward 15 sec -->
+            <button class="player-btn btn-skip" id="btnBack15" title="Rewind 15 seconds (or previous sentence)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>
+              </svg>
+              <span class="skip-label">-15s</span>
+            </button>
+
+            <!-- Stop Button -->
+            <button class="player-btn btn-stop" id="btnStop" title="Stop speech and reset position">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="5" y="5" width="14" height="14" rx="2" />
+              </svg>
+            </button>
+
+            <!-- Play / Pause Master Button -->
+            <button class="player-btn btn-play-master" id="btnPlayMaster" title="Play / Pause speech">
+              <svg class="icon-play" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="6 4 20 12 6 20 6 4" />
+              </svg>
+              <svg class="icon-pause" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
+                <rect x="6" y="4" width="4" height="16" rx="1" />
+                <rect x="14" y="4" width="4" height="16" rx="1" />
+              </svg>
+            </button>
+
+            <!-- Forward 15 sec -->
+            <button class="player-btn btn-skip" id="btnFwd15" title="Forward 15 seconds (or next sentence)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 17l5-5-5-5M6 17l5-5-5-5"/>
+              </svg>
+              <span class="skip-label">+15s</span>
+            </button>
+          </div>
+
+          <!-- Right: Speed Sleek Slider + Save to Library -->
+          <div class="controls-group controls-right">
+            <!-- Sleek Speed Slider -->
+            <div class="speed-control-container">
+              <div class="speed-header">
+                <span class="speed-label-text">Speed</span>
+                <span class="speed-value-badge" id="speedDisplay">1.0x</span>
+              </div>
+              <div class="speed-slider-wrap">
+                <input 
+                  type="range" 
+                  class="sleek-slider sleek-speed" 
+                  id="speedSlider" 
+                  min="0.5" 
+                  max="3.0" 
+                  step="0.1" 
+                  value="1.0"
+                  aria-label="Adjust reading speed"
+                />
+              </div>
+              <!-- Speed Quick Chips -->
+              <div class="speed-quick-chips">
+                <button class="chip-btn" data-speed="0.8">0.8x</button>
+                <button class="chip-btn active" data-speed="1.0">1.0x</button>
+                <button class="chip-btn" data-speed="1.2">1.2x</button>
+                <button class="chip-btn" data-speed="1.5">1.5x</button>
+                <button class="chip-btn" data-speed="2.0">2.0x</button>
+              </div>
+            </div>
+
+            <div class="divider-v"></div>
+
+            <!-- Save to Library Button -->
+            <button class="btn btn-primary btn-save-library" id="btnSaveLibrary" title="Save document & playback state to your Library">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span>Save to Library</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Slide-Out Library Drawer -->
+    <aside class="library-drawer" id="libraryDrawer" aria-hidden="true">
+      <div class="library-drawer-backdrop" id="libraryBackdrop"></div>
+      <div class="library-drawer-content">
+        <div class="library-header">
+          <div class="library-title-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            <h2>My Library</h2>
+            <span class="lib-count-badge" id="libDrawerCount">0 items</span>
+          </div>
+          <button class="btn-icon" id="btnCloseLibrary" aria-label="Close library">&times;</button>
+        </div>
+
+        <!-- Library Cloud Sync Status Banner -->
+        <div class="library-sync-banner" id="librarySyncBanner">
+          <div class="sync-banner-info">
+            <span class="sync-dot sync-dot-offline" id="librarySyncDot"></span>
+            <span class="sync-banner-text" id="librarySyncText">Guest Mode (Local Storage Only)</span>
+          </div>
+          <button class="btn btn-xs btn-link" id="btnLibrarySyncAction">Sign In to Sync</button>
+        </div>
+
+        <div class="library-toolbar">
+          <div class="search-input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="librarySearch" placeholder="Search saved documents..." />
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btnClearAllLibrary" title="Clear all saved documents">Clear All</button>
+        </div>
+
+        <div class="library-list" id="libraryList">
+          <!-- Dynamic library items will be rendered here -->
+          <div class="library-empty-state" id="libraryEmptyState">
+            <div class="empty-icon">📚</div>
+            <h3>Your Library is Empty</h3>
+            <p>Paste or upload text in the reader, then click "Save to Library" to store documents and your reading progress.</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Duplicate Title Warning & Resolution Modal -->
+    <div class="duplicate-modal-overlay" id="duplicateModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="dupModalTitle">
+      <div class="duplicate-modal-card">
+        <div class="dup-icon-wrap">⚠️</div>
+        <h3 id="dupModalTitle">Duplicate Name Detected</h3>
+        <p id="dupModalDesc">
+          A file named <strong id="dupExistingName">"..."</strong> already exists in your library.
+          There cannot be two files with the same name. Please change the name or remove the existing file before saving.
+        </p>
+        
+        <div class="dup-input-wrap">
+          <label for="dupNewTitleInput">Enter a new unique name:</label>
+          <input type="text" id="dupNewTitleInput" placeholder="Enter new unique title..." maxlength="80" />
+          <span class="dup-input-hint" id="dupInputHint" style="display:none;"></span>
+        </div>
+
+        <div class="dup-modal-actions">
+          <button class="btn btn-primary" id="btnDupRenameAndSave">Rename & Save</button>
+          <button class="btn btn-secondary" id="btnDupOpenLibrary">Open Library to Remove Previous File</button>
+          <button class="btn btn-secondary btn-sm" id="btnDupCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         AUTH MODAL (Sign In, Sign Up, Forgot Password, Reset Password)
+         ====================================================================== -->
+    <div class="modal-overlay auth-modal-overlay" id="authModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="authModalHeading">
+      <div class="modal-card auth-modal-card">
+        <button class="btn-icon modal-close-btn" id="btnCloseAuthModal" aria-label="Close dialog">&times;</button>
+        
+        <div class="auth-card-header">
+          <div class="auth-icon-badge">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z"/>
+            </svg>
+          </div>
+          <h2 id="authModalHeading">Read Fluent Account</h2>
+          <p id="authModalSubheading">Access your user-isolated cloud library from any device</p>
+        </div>
+
+        <!-- Auth Mode Switch Tabs -->
+        <div class="auth-tabs" id="authTabs" role="tablist">
+          <button class="auth-tab-btn active" id="tabSignIn" role="tab" aria-selected="true">Sign In</button>
+          <button class="auth-tab-btn" id="tabSignUp" role="tab" aria-selected="false">Create Account</button>
+          <button class="auth-tab-btn" id="tabForgot" role="tab" aria-selected="false">Forgot Password</button>
+        </div>
+
+        <!-- Tab 1: SIGN IN FORM -->
+        <form class="auth-form" id="formSignIn">
+          <div class="form-group">
+            <label for="inputSignInEmail">Email Address</label>
+            <div class="input-icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input type="email" id="inputSignInEmail" placeholder="you@example.com" required autocomplete="email" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-link">
+              <label for="inputSignInPassword">Password</label>
+              <button type="button" class="btn-text-link" id="btnLinkForgotFromSignIn">Forgot?</button>
+            </div>
+            <div class="input-icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input type="password" id="inputSignInPassword" placeholder="••••••••" required autocomplete="current-password" />
+              <button type="button" class="btn-toggle-pw" aria-label="Toggle password visibility">👁️</button>
+            </div>
+          </div>
+
+          <div class="auth-error-alert" id="signInError" style="display:none;"></div>
+
+          <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitSignIn">
+            <span class="btn-text">Sign In to Workspace</span>
+            <span class="btn-spinner" style="display:none;"></span>
+          </button>
+
+          <div class="auth-footer-prompt">
+            <span>Don't have an account?</span>
+            <button type="button" class="btn-text-link" id="btnSwitchToSignUp">Create one for free</button>
+          </div>
+        </form>
+
+        <!-- Tab 2: SIGN UP FORM -->
+        <form class="auth-form" id="formSignUp" style="display:none;">
+          <div class="form-group">
+            <label for="inputSignUpName">Full Name</label>
+            <div class="input-icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <input type="text" id="inputSignUpName" placeholder="Alex Morgan" autocomplete="name" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inputSignUpEmail">Email Address</label>
+            <div class="input-icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input type="email" id="inputSignUpEmail" placeholder="you@example.com" required autocomplete="email" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inputSignUpPassword">Password (minimum 6 characters)</label>
+            <div class="input-icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input type="password" id="inputSignUpPassword" placeholder="••••••••" required minlength="6" autocomplete="new-password" />
+              <button type="button" class="btn-toggle-pw" aria-label="Toggle password visibility">👁️</button>
+            </div>
+          </div>
+
+          <div class="auth-error-alert" id="signUpError" style="display:none;"></div>
+          <div class="auth-success-alert" id="signUpSuccess" style="display:none;"></div>
+
+          <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitSignUp">
+            <span class="btn-text">Create Free Account</span>
+            <span class="btn-spinner" style="display:none;"></span>
+          </button>
+
+          <div class="auth-footer-prompt">
+            <span>Already have an account?</span>
+            <button type="button" class="btn-text-link" id="btnSwitchToSignIn">Sign In</button>
+          </div>
+        </form>
+
+        <!-- Tab 3: FORGOT PASSWORD FORM -->
+        <form class="auth-form" id="formForgot" style="display:none;">
+          <p class="form-info-text">
+            Enter your email and we'll send a secure password reset link to access your account.
+          </p>
+
+          <div class="form-group">
+            <label for="inputForgotEmail">Email Address</label>
+            <div class="input-icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input type="email" id="inputForgotEmail" placeholder="you@example.com" required autocomplete="email" />
+            </div>
+          </div>
+
+          <div class="auth-error-alert" id="forgotError" style="display:none;"></div>
+          <div class="auth-success-alert" id="forgotSuccess" style="display:none;"></div>
+
+          <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitForgot">
+            <span class="btn-text">Send Password Reset Link</span>
+            <span class="btn-spinner" style="display:none;"></span>
+          </button>
+
+          <div class="auth-footer-prompt">
+            <button type="button" class="btn-text-link" id="btnForgotBackToSignIn">← Back to Sign In</button>
+          </div>
+        </form>
+
+        <!-- Tab 4: SET NEW PASSWORD FORM (Triggered by Recovery Link) -->
+        <form class="auth-form" id="formResetPassword" style="display:none;">
+          <div class="auth-pill-banner">🔐 Setting New Password</div>
+          <p class="form-info-text">
+            Choose a strong new password for your Read Fluent account.
+          </p>
+
+          <div class="form-group">
+            <label for="inputNewPassword">New Password</label>
+            <div class="input-icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input type="password" id="inputNewPassword" placeholder="••••••••" required minlength="6" />
+              <button type="button" class="btn-toggle-pw" aria-label="Toggle password visibility">👁️</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inputConfirmNewPassword">Confirm New Password</label>
+            <div class="input-icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input type="password" id="inputConfirmNewPassword" placeholder="••••••••" required minlength="6" />
+            </div>
+          </div>
+
+          <div class="auth-error-alert" id="resetPasswordError" style="display:none;"></div>
+
+          <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitResetPassword">
+            <span class="btn-text">Update Password & Continue</span>
+            <span class="btn-spinner" style="display:none;"></span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         ADMIN DASHBOARD MODAL
+         ====================================================================== -->
+    <div class="modal-overlay admin-modal-overlay" id="adminModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+      <div class="modal-card admin-modal-card">
+        <div class="admin-modal-header">
+          <div class="admin-title-wrap">
+            <div class="admin-badge-icon">🛡️</div>
+            <div>
+              <h2 id="adminModalTitle">Administrator Management Console</h2>
+              <p>Manage users, roles, and review cloud document usage across your platform</p>
+            </div>
+          </div>
+          <button class="btn-icon modal-close-btn" id="btnCloseAdminModal" aria-label="Close admin dashboard">&times;</button>
+        </div>
+
+        <!-- Admin Overview Stat Cards -->
+        <div class="admin-stats-ribbon">
+          <div class="admin-stat-card">
+            <span class="stat-number" id="adminStatTotalUsers">0</span>
+            <span class="stat-caption">Total Registered Users</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="stat-number" id="adminStatTotalDocs">0</span>
+            <span class="stat-caption">Total Cloud Documents</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="stat-number" id="adminStatAdmins">0</span>
+            <span class="stat-caption">Admin Accounts</span>
+          </div>
+          <div class="admin-stat-card admin-current-card">
+            <span class="stat-badge-role">Active Session</span>
+            <span class="stat-admin-email" id="adminStatCurrentEmail">admin@...</span>
+          </div>
+        </div>
+
+        <!-- Admin Tabs / Navigation -->
+        <div class="admin-subnav">
+          <div class="admin-tab-buttons">
+            <button class="admin-tab-btn active" id="btnAdminTabUsers">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              <span>User Directory</span>
+            </button>
+            <button class="admin-tab-btn" id="btnAdminTabAddUser">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <line x1="20" y1="8" x2="20" y2="14"/>
+                <line x1="23" y1="11" x2="17" y2="11"/>
+              </svg>
+              <span>+ Add New User</span>
+            </button>
+          </div>
+
+          <div class="admin-subnav-right">
+            <button class="btn btn-secondary btn-sm" id="btnAdminRefreshUsers" title="Refresh user list">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section 1: User Directory List -->
+        <div class="admin-section" id="adminSectionUsers">
+          <div class="admin-search-bar">
+            <div class="search-input-wrap">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" id="adminUserSearchInput" placeholder="Filter users by email or name..." />
+            </div>
+            <span class="admin-filter-count" id="adminUserFilterCount">0 users</span>
+          </div>
+
+          <div class="admin-table-container">
+            <table class="admin-table" id="adminUsersTable">
+              <thead>
+                <tr>
+                  <th>User Profile</th>
+                  <th>Role</th>
+                  <th>Cloud Docs</th>
+                  <th>Registered</th>
+                  <th>Last Sign In</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminUsersTbody">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+            <div class="table-loading-overlay" id="adminTableLoading" style="display:none;">
+              <div class="parsing-spinner"></div>
+              <span>Loading users from database...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Add New User Form -->
+        <div class="admin-section" id="adminSectionAddUser" style="display:none;">
+          <div class="admin-card-inner">
+            <div class="admin-card-heading">
+              <h3>Create New User Account</h3>
+              <p>Add a user directly to the Supabase database. They will immediately be able to sign in.</p>
+            </div>
+
+            <form class="admin-add-user-form" id="formAdminAddUser">
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="adminNewUserEmail">User Email <span class="req">*</span></label>
+                  <input type="email" id="adminNewUserEmail" placeholder="employee@company.com" required />
+                </div>
+                <div class="form-group flex-1">
+                  <label for="adminNewUserFullName">Full Name</label>
+                  <input type="text" id="adminNewUserFullName" placeholder="Taylor Swift" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="adminNewUserPassword">Initial Password <span class="req">*</span> (min. 6 chars)</label>
+                  <input type="password" id="adminNewUserPassword" placeholder="Minimum 6 characters" required minlength="6" />
+                </div>
+                <div class="form-group flex-1">
+                  <label for="adminNewUserRole">Assign Role <span class="req">*</span></label>
+                  <select id="adminNewUserRole" class="sleek-select">
+                    <option value="user" selected>Standard User (Access to personal library)</option>
+                    <option value="admin">Administrator (Full access to admin panel & user management)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="auth-error-alert" id="adminAddUserError" style="display:none;"></div>
+              <div class="auth-success-alert" id="adminAddUserSuccess" style="display:none;"></div>
+
+              <div class="admin-form-actions">
+                <button type="submit" class="btn btn-primary" id="btnAdminSubmitAddUser">
+                  <span>Create User Account</span>
+                </button>
+                <button type="button" class="btn btn-secondary" id="btnAdminCancelAddUser">
+                  <span>Cancel</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         ADMIN: USER DOCUMENTS INSPECTOR MODAL
+         ====================================================================== -->
+    <div class="modal-overlay" id="adminUserDocsModal" style="display:none;" role="dialog" aria-modal="true">
+      <div class="modal-card admin-docs-modal-card">
+        <div class="modal-card-header">
+          <div>
+            <h3>User Cloud Documents</h3>
+            <span class="user-inspect-email" id="inspectUserEmail">user@example.com</span>
+          </div>
+          <button class="btn-icon modal-close-btn" id="btnCloseInspectModal" aria-label="Close dialog">&times;</button>
+        </div>
+
+        <div class="inspect-docs-list" id="inspectDocsList">
+          <!-- Documents listed here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         CONFIRM USER DELETION MODAL
+         ====================================================================== -->
+    <div class="modal-overlay" id="adminConfirmDeleteModal" style="display:none;" role="dialog" aria-modal="true">
+      <div class="modal-card modal-card-danger">
+        <div class="danger-icon-wrap">🗑️</div>
+        <h3>Delete User Account?</h3>
+        <p>
+          Are you sure you want to permanently delete user <strong id="deleteTargetEmail">user@example.com</strong>?
+        </p>
+        <p class="danger-subtext">
+          ⚠️ All of this user's saved documents, audio progress, and uploaded storage files will be permanently deleted from Supabase. This action cannot be undone.
+        </p>
+        <div class="danger-actions">
+          <button class="btn btn-danger" id="btnConfirmDeleteUser">Delete User Permanently</button>
+          <button class="btn btn-secondary" id="btnCancelDeleteUser">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         SUPABASE BACKEND CONFIGURATION MODAL
+         ====================================================================== -->
+    <div class="modal-overlay" id="supabaseConfigModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="supabaseModalHeading">
+      <div class="modal-card supabase-modal-card">
+        <button class="btn-icon modal-close-btn" id="btnCloseSupabaseConfig" aria-label="Close dialog">&times;</button>
+
+        <div class="supabase-modal-header">
+          <div class="supabase-logo-pill">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M13.2 2.8c.4-.7 1.5-.4 1.5.5V11h7c.8 0 1.2 1 .6 1.6l-9 10.4c-.4.5-1.3.3-1.4-.4V14H4.8c-.8 0-1.2-1-.6-1.6L13.2 2.8z" fill="#3ECF8E"/>
+            </svg>
+            <span>Supabase Cloud Integration</span>
+          </div>
+          <h2 id="supabaseModalHeading">Connect Supabase Backend</h2>
+          <p>
+            ReadFluent uses Supabase for user authentication, per-user cloud documents, and administrative user management.
+          </p>
+        </div>
+
+        <div class="supabase-status-banner" id="supabaseCurrentStatusBanner">
+          <span class="status-indicator-dot" id="modalSupabaseDot"></span>
+          <span id="modalSupabaseStatusText">Checking connection...</span>
+        </div>
+
+        <form class="supabase-config-form" id="formSupabaseConfig">
+          <div class="form-group">
+            <label for="cfgSupabaseUrl">Supabase Project URL</label>
+            <input type="url" id="cfgSupabaseUrl" placeholder="https://your-project.supabase.co" required />
+            <span class="field-hint">Found in Supabase Dashboard → Settings → API → Project URL</span>
+          </div>
+
+          <div class="form-group">
+            <label for="cfgSupabaseAnonKey">Supabase Anon Public Key</label>
+            <textarea id="cfgSupabaseAnonKey" rows="3" placeholder="eyJhbGciOiJIUzI1NiIsIn..." required></textarea>
+            <span class="field-hint">Found in Supabase Dashboard → Settings → API → Project API Keys (anon / public)</span>
+          </div>
+
+          <div class="supabase-guide-box">
+            <h4>Quick Database Setup:</h4>
+            <ol>
+              <li>Create a new project at <a href="https://supabase.com" target="_blank" rel="noopener">supabase.com</a></li>
+              <li>Open the <strong>SQL Editor</strong> in Supabase and paste the contents of <code>supabase_schema.sql</code></li>
+              <li>Click <strong>Run</strong> to create tables, RLS policies, storage, and admin RPC functions</li>
+              <li>Paste your credentials above and click <strong>Save & Connect</strong>!</li>
+            </ol>
+          </div>
+
+          <div class="auth-error-alert" id="supabaseConfigError" style="display:none;"></div>
+          <div class="auth-success-alert" id="supabaseConfigSuccess" style="display:none;"></div>
+
+          <div class="supabase-config-actions">
+            <button type="submit" class="btn btn-primary" id="btnSaveSupabaseConfig">
+              <span>Save & Connect</span>
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnClearSupabaseConfig">
+              <span>Reset Credentials</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
