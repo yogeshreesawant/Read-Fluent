@@ -2963,3 +2963,25 @@ html, body {
   text-align: center;
   letter-spacing: 0.2px;
 }
+
+/* Header Admin Quick Button */
+.btn-header-admin {
+  background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  padding: 6px 14px !important;
+  border-radius: var(--radius-full) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-header-admin:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 22px rgba(139, 92, 246, 0.55);
+}

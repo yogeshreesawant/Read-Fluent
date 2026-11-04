@@ -526,6 +526,7 @@
         dropdownUserRolePill: document.getElementById('dropdownUserRolePill'),
         btnMenuOpenLibrary: document.getElementById('btnMenuOpenLibrary'),
         btnMenuOpenAdmin: document.getElementById('btnMenuOpenAdmin'),
+        btnHeaderAdmin: document.getElementById('btnHeaderAdmin'),
         btnMenuSignOut: document.getElementById('btnMenuSignOut'),
 
         // Admin Dashboard Elements
@@ -1896,9 +1897,12 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
         }
       }
 
-      // Show Admin Dashboard button if admin
+      // Show Admin Dashboard buttons if admin
       if (this.dom.btnMenuOpenAdmin) {
         this.dom.btnMenuOpenAdmin.style.display = isAdmin ? 'flex' : 'none';
+      }
+      if (this.dom.btnHeaderAdmin) {
+        this.dom.btnHeaderAdmin.style.display = isAdmin ? 'inline-flex' : 'none';
       }
 
       // Update Library Sync Banner
@@ -1968,6 +1972,12 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
       if (this.dom.btnMenuOpenAdmin) {
         this.dom.btnMenuOpenAdmin.addEventListener('click', () => {
           this.dom.userDropdownPopover.style.display = 'none';
+          this.openAdminModal();
+        });
+      }
+
+      if (this.dom.btnHeaderAdmin) {
+        this.dom.btnHeaderAdmin.addEventListener('click', () => {
           this.openAdminModal();
         });
       }
