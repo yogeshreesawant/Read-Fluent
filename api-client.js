@@ -79,6 +79,17 @@
       return !!(this.profile && this.profile.role === 'admin');
     }
 
+    getApiBase() {
+      if (window.READFLUENT_API_BASE && typeof window.READFLUENT_API_BASE === 'string') {
+        return window.READFLUENT_API_BASE.replace(/\/$/, '');
+      }
+      try {
+        const stored = localStorage.getItem('readfluent_api_base');
+        if (stored) return stored.replace(/\/$/, '');
+      } catch (e) {}
+      return '';
+    }
+
     async request(endpoint, options = {}) {
       const headers = {
         'Content-Type': 'application/json',
@@ -89,9 +100,11 @@
         headers['Authorization'] = `Bearer ${this.token}`;
       }
 
+      const url = `${this.getApiBase()}${endpoint}`;
+
       let response;
       try {
-        response = await fetch(endpoint, {
+        response = await fetch(url, {
           method: options.method || 'GET',
           headers: headers,
           body: options.body ? JSON.stringify(options.body) : undefined

@@ -1,0 +1,23 @@
+{
+  "name": "readfluent",
+  "version": "1.0.0",
+  "description": "Read Fluent — High-Performance Text-to-Speech Studio & User-Isolated Document Reader",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "text-to-speech",
+    "tts",
+    "reader",
+    "document-reader",
+    "supabase",
+    "auth"
+  ],
+  "author": "sukumarsawant",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
