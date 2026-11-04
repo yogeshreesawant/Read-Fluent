@@ -1,14 +1,15 @@
 /**
  * READ FLUENT — CLIENT CONFIGURATION
+ * 
+ * Hosting Directly on GitHub Pages (Zero Extra Servers Needed):
+ * Read Fluent communicates directly with your Supabase backend using your Project URL
+ * and publishable anon key. NO Render.com or external server is required!
  *
- * 🔒 SECURITY:
- * All Supabase URLs, anon keys, and service keys are kept strictly on the backend
- * server in `.env`. Zero database credentials are ever exposed in this file or the browser.
- *
- * 🌐 HOSTING CONFIGURATION:
- * - Localhost / Full-Stack Hosting (Render, Railway, VPS): Leave empty ('')
- * - GitHub Pages with external backend: Set to your deployed backend URL
- *   e.g.: window.READFLUENT_API_BASE = 'https://readfluent-api.onrender.com';
+ * Security is enforced directly inside PostgreSQL via Row Level Security (RLS).
  */
 
-window.READFLUENT_API_BASE = '';
+window.READFLUENT_CONFIG = {
+  SUPABASE_URL: 'https://xwswsrwveydoowyqsvyy.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_tgV3CjGYwzt17EWgo-LXQA_6wwF_-x4',
+  BACKEND_API_BASE: ''
+};
