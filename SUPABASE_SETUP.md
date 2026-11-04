@@ -1,6 +1,16 @@
-# Supabase Backend Setup Guide for Read Fluent
+# Supabase Backend & Secure Proxy Setup Guide for Read Fluent
 
-This guide walks you through setting up your Supabase backend to enable **Authentication**, **User-wise Document & File Storage**, and **Admin User Management** for Read Fluent.
+This guide walks you through setting up your Supabase backend to enable **Authentication**, **User-wise Document & File Storage**, and **Admin User Management** for Read Fluent with **zero client-side credential exposure**.
+
+---
+
+## 🔒 Security Architecture (Zero Credentials Leaked)
+
+- **Supabase URL & API Keys**: Stored exclusively on the server side in `.env`.
+- **Zero Frontend Exposure**: No Supabase keys or endpoint URLs are ever exposed in frontend JavaScript, HTML, network headers, or GitHub repositories.
+- **Strict Authentication Guard**: `index.html` requires an active authenticated session. Unauthenticated visitors are automatically redirected to `login.html`.
+- **User-Isolated Storage**: Every document, upload, and reading progress is tied strictly to the authenticated user's ID via Row Level Security (RLS).
+- **Admin Management**: Administrators have exclusive access to manage users, assign roles, inspect document counts, and delete accounts.
 
 ---
 
@@ -41,56 +51,63 @@ This guide walks you through setting up your Supabase backend to enable **Authen
 1. In Supabase Dashboard left sidebar, go to **Project Settings** (gear icon) → **API**.
 2. Find:
    - **Project URL**: `https://<your-project-ref>.supabase.co`
-   - **Project API Keys** → `anon` `public`: `eyJhbGciOi...`
+   - **Project API Keys** → `anon` `public` (or `service_role` secret key for backend)
 
 ---
 
-## 4. Connect Read Fluent to Supabase
+## 4. Configure Backend Server (`.env`)
 
-You can connect in either of two ways:
-
-### Option A: Direct Web UI (Easiest, No Code Editing)
-1. Open Read Fluent in your browser (locally or on GitHub Pages).
-2. Click the **"Supabase"** button in the top navigation header.
-3. Paste your **Project URL** and **Anon Key**.
-4. Click **"Save & Connect"**. The status dot turns green!
-
-### Option B: Pre-configure in `config.js`
-Open [`config.js`](config.js) and paste your credentials:
-```javascript
-window.READFLUENT_CONFIG = {
-  SUPABASE_URL: 'https://your-project-id.supabase.co',
-  SUPABASE_ANON_KEY: 'your-anon-public-key-here'
-};
-```
-Commit and push to GitHub.
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Open `.env` and fill in your credentials:
+   ```env
+   PORT=8080
+   SUPABASE_URL=https://<your-project-ref>.supabase.co
+   SUPABASE_KEY=your-supabase-key-here
+   ```
+3. `.env` is listed in `.gitignore` and will never be committed to Git.
 
 ---
 
 ## 5. Enable Email Auth & URL Redirects
 
 1. Go to **Authentication** → **URL Configuration**.
-2. Set **Site URL** to your GitHub Pages URL (e.g. `https://<your-github-username>.github.io/ReadFluent/`) or `http://localhost:8080/`.
+2. Set **Site URL** to `http://localhost:8080/` (or your deployed URL).
 3. Add your production and local URLs to **Redirect URLs**:
    - `http://localhost:8080/*`
    - `http://127.0.0.1:8080/*`
-   - `https://<your-github-username>.github.io/ReadFluent/*`
+   - `https://<your-domain>/*`
 4. *(Optional)* If you want users to be able to sign in immediately without email confirmation:
    - Go to **Authentication** → **Providers** → **Email**.
    - Toggle **"Confirm email"** OFF (or leave ON for production email validation).
 
 ---
 
-## 6. Designate Your First Admin Account
+## 6. Run the Server
 
-1. Open Read Fluent in your browser.
-2. Click **"Sign In"** in the top-right header, switch to **"Create Account"**, and sign up with your email (e.g., `admin@example.com`).
+Start the zero-dependency backend server:
+```bash
+node server.js
+```
+Open [http://localhost:8080](http://localhost:8080) in your browser:
+- You will be automatically redirected to `login.html`.
+- Sign up or log in.
+- Once authenticated, you will be directed to `index.html` where only your documents and library will appear.
+
+---
+
+## 7. Designate Your First Admin Account
+
+1. Open `http://localhost:8080/login.html` in your browser.
+2. Switch to **"Sign Up"** and register your admin email (e.g., `admin@example.com`).
 3. In your Supabase Dashboard, go to **SQL Editor** and run:
    ```sql
    UPDATE public.profiles
    SET role = 'admin'
    WHERE email = 'admin@example.com';
    ```
-4. Refresh Read Fluent (or sign out and sign in).
+4. Sign in as `admin@example.com`.
 5. You will see the **"Admin"** badge in your header avatar and the **"Admin Console"** option in your profile menu!
 6. Open the Admin Console to view all registered users, add new users, change roles, inspect user documents, and delete accounts.

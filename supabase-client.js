@@ -627,3 +627,4 @@
   // Export singleton to window
   window.ReadFluentSupabase = new SupabaseService();
 })();
+

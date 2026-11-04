@@ -15,11 +15,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- Mammoth.js for client-side Word (.docx) text extraction -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-  <!-- Supabase JS Client v2 (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Supabase Config & Client Service -->
-  <script src="config.js"></script>
-  <script src="supabase-client.js"></script>
+  <!-- Secure API Client Service (Zero credentials exposed) -->
+  <script src="api-client.js"></script>
+  <script>
+    // Strict Authentication Guard: Redirect immediately to login.html if not logged in
+    if (!window.ReadFluentAPI || !window.ReadFluentAPI.isAuthenticated()) {
+      window.location.replace('login.html');
+    }
+  </script>
 
   <link rel="stylesheet" href="style.css">
 </head>
@@ -129,23 +132,8 @@
 
         <div class="header-divider-v"></div>
 
-        <!-- Supabase Cloud Connection Indicator / Quick Setup -->
-        <button class="btn btn-secondary btn-supabase-status" id="btnSupabaseSettingsToggle" title="Supabase Cloud Settings">
-          <span class="status-indicator-dot" id="supabaseStatusDot"></span>
-          <span class="status-btn-text">Supabase</span>
-        </button>
-
-        <!-- Auth Button: Shown when logged out -->
-        <button class="btn btn-primary btn-auth-trigger" id="btnAuthOpen" title="Sign In or Create Account">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-          <span>Sign In</span>
-        </button>
-
-        <!-- User Profile Dropdown: Shown when logged in -->
-        <div class="user-menu-container" id="userMenuContainer" style="display: none;">
+        <!-- User Profile Dropdown: Displays active authenticated user & role -->
+        <div class="user-menu-container" id="userMenuContainer">
           <button class="btn btn-secondary user-menu-trigger" id="btnUserMenuTrigger" aria-expanded="false" aria-haspopup="true">
             <span class="user-avatar-badge" id="headerUserAvatar">U</span>
             <span class="user-email-snippet" id="headerUserEmail">user@example.com</span>
@@ -178,13 +166,6 @@
               </svg>
               <span>Admin Management</span>
               <span class="admin-spark-badge">Admin</span>
-            </button>
-            <button class="dropdown-item" id="btnMenuSupabaseSettings" role="menuitem">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-              </svg>
-              <span>Backend Settings</span>
             </button>
             <div class="dropdown-divider"></div>
             <button class="dropdown-item text-danger" id="btnMenuSignOut" role="menuitem">
@@ -526,191 +507,6 @@
     </div>
 
     <!-- ======================================================================
-         AUTH MODAL (Sign In, Sign Up, Forgot Password, Reset Password)
-         ====================================================================== -->
-    <div class="modal-overlay auth-modal-overlay" id="authModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="authModalHeading">
-      <div class="modal-card auth-modal-card">
-        <button class="btn-icon modal-close-btn" id="btnCloseAuthModal" aria-label="Close dialog">&times;</button>
-        
-        <div class="auth-card-header">
-          <div class="auth-icon-badge">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z"/>
-            </svg>
-          </div>
-          <h2 id="authModalHeading">Read Fluent Account</h2>
-          <p id="authModalSubheading">Access your user-isolated cloud library from any device</p>
-        </div>
-
-        <!-- Auth Mode Switch Tabs -->
-        <div class="auth-tabs" id="authTabs" role="tablist">
-          <button class="auth-tab-btn active" id="tabSignIn" role="tab" aria-selected="true">Sign In</button>
-          <button class="auth-tab-btn" id="tabSignUp" role="tab" aria-selected="false">Create Account</button>
-          <button class="auth-tab-btn" id="tabForgot" role="tab" aria-selected="false">Forgot Password</button>
-        </div>
-
-        <!-- Tab 1: SIGN IN FORM -->
-        <form class="auth-form" id="formSignIn">
-          <div class="form-group">
-            <label for="inputSignInEmail">Email Address</label>
-            <div class="input-icon-wrap">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-              </svg>
-              <input type="email" id="inputSignInEmail" placeholder="you@example.com" required autocomplete="email" />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <div class="label-with-link">
-              <label for="inputSignInPassword">Password</label>
-              <button type="button" class="btn-text-link" id="btnLinkForgotFromSignIn">Forgot?</button>
-            </div>
-            <div class="input-icon-wrap">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              <input type="password" id="inputSignInPassword" placeholder="••••••••" required autocomplete="current-password" />
-              <button type="button" class="btn-toggle-pw" aria-label="Toggle password visibility">👁️</button>
-            </div>
-          </div>
-
-          <div class="auth-error-alert" id="signInError" style="display:none;"></div>
-
-          <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitSignIn">
-            <span class="btn-text">Sign In to Workspace</span>
-            <span class="btn-spinner" style="display:none;"></span>
-          </button>
-
-          <div class="auth-footer-prompt">
-            <span>Don't have an account?</span>
-            <button type="button" class="btn-text-link" id="btnSwitchToSignUp">Create one for free</button>
-          </div>
-        </form>
-
-        <!-- Tab 2: SIGN UP FORM -->
-        <form class="auth-form" id="formSignUp" style="display:none;">
-          <div class="form-group">
-            <label for="inputSignUpName">Full Name</label>
-            <div class="input-icon-wrap">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-              </svg>
-              <input type="text" id="inputSignUpName" placeholder="Alex Morgan" autocomplete="name" />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="inputSignUpEmail">Email Address</label>
-            <div class="input-icon-wrap">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-              </svg>
-              <input type="email" id="inputSignUpEmail" placeholder="you@example.com" required autocomplete="email" />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="inputSignUpPassword">Password (minimum 6 characters)</label>
-            <div class="input-icon-wrap">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              <input type="password" id="inputSignUpPassword" placeholder="••••••••" required minlength="6" autocomplete="new-password" />
-              <button type="button" class="btn-toggle-pw" aria-label="Toggle password visibility">👁️</button>
-            </div>
-          </div>
-
-          <div class="auth-error-alert" id="signUpError" style="display:none;"></div>
-          <div class="auth-success-alert" id="signUpSuccess" style="display:none;"></div>
-
-          <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitSignUp">
-            <span class="btn-text">Create Free Account</span>
-            <span class="btn-spinner" style="display:none;"></span>
-          </button>
-
-          <div class="auth-footer-prompt">
-            <span>Already have an account?</span>
-            <button type="button" class="btn-text-link" id="btnSwitchToSignIn">Sign In</button>
-          </div>
-        </form>
-
-        <!-- Tab 3: FORGOT PASSWORD FORM -->
-        <form class="auth-form" id="formForgot" style="display:none;">
-          <p class="form-info-text">
-            Enter your email and we'll send a secure password reset link to access your account.
-          </p>
-
-          <div class="form-group">
-            <label for="inputForgotEmail">Email Address</label>
-            <div class="input-icon-wrap">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-              </svg>
-              <input type="email" id="inputForgotEmail" placeholder="you@example.com" required autocomplete="email" />
-            </div>
-          </div>
-
-          <div class="auth-error-alert" id="forgotError" style="display:none;"></div>
-          <div class="auth-success-alert" id="forgotSuccess" style="display:none;"></div>
-
-          <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitForgot">
-            <span class="btn-text">Send Password Reset Link</span>
-            <span class="btn-spinner" style="display:none;"></span>
-          </button>
-
-          <div class="auth-footer-prompt">
-            <button type="button" class="btn-text-link" id="btnForgotBackToSignIn">← Back to Sign In</button>
-          </div>
-        </form>
-
-        <!-- Tab 4: SET NEW PASSWORD FORM (Triggered by Recovery Link) -->
-        <form class="auth-form" id="formResetPassword" style="display:none;">
-          <div class="auth-pill-banner">🔐 Setting New Password</div>
-          <p class="form-info-text">
-            Choose a strong new password for your Read Fluent account.
-          </p>
-
-          <div class="form-group">
-            <label for="inputNewPassword">New Password</label>
-            <div class="input-icon-wrap">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              <input type="password" id="inputNewPassword" placeholder="••••••••" required minlength="6" />
-              <button type="button" class="btn-toggle-pw" aria-label="Toggle password visibility">👁️</button>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="inputConfirmNewPassword">Confirm New Password</label>
-            <div class="input-icon-wrap">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              <input type="password" id="inputConfirmNewPassword" placeholder="••••••••" required minlength="6" />
-            </div>
-          </div>
-
-          <div class="auth-error-alert" id="resetPasswordError" style="display:none;"></div>
-
-          <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitResetPassword">
-            <span class="btn-text">Update Password & Continue</span>
-            <span class="btn-spinner" style="display:none;"></span>
-          </button>
-        </form>
-      </div>
-    </div>
-
-    <!-- ======================================================================
          ADMIN DASHBOARD MODAL
          ====================================================================== -->
     <div class="modal-overlay admin-modal-overlay" id="adminModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
@@ -903,69 +699,6 @@
           <button class="btn btn-danger" id="btnConfirmDeleteUser">Delete User Permanently</button>
           <button class="btn btn-secondary" id="btnCancelDeleteUser">Cancel</button>
         </div>
-      </div>
-    </div>
-
-    <!-- ======================================================================
-         SUPABASE BACKEND CONFIGURATION MODAL
-         ====================================================================== -->
-    <div class="modal-overlay" id="supabaseConfigModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="supabaseModalHeading">
-      <div class="modal-card supabase-modal-card">
-        <button class="btn-icon modal-close-btn" id="btnCloseSupabaseConfig" aria-label="Close dialog">&times;</button>
-
-        <div class="supabase-modal-header">
-          <div class="supabase-logo-pill">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M13.2 2.8c.4-.7 1.5-.4 1.5.5V11h7c.8 0 1.2 1 .6 1.6l-9 10.4c-.4.5-1.3.3-1.4-.4V14H4.8c-.8 0-1.2-1-.6-1.6L13.2 2.8z" fill="#3ECF8E"/>
-            </svg>
-            <span>Supabase Cloud Integration</span>
-          </div>
-          <h2 id="supabaseModalHeading">Connect Supabase Backend</h2>
-          <p>
-            ReadFluent uses Supabase for user authentication, per-user cloud documents, and administrative user management.
-          </p>
-        </div>
-
-        <div class="supabase-status-banner" id="supabaseCurrentStatusBanner">
-          <span class="status-indicator-dot" id="modalSupabaseDot"></span>
-          <span id="modalSupabaseStatusText">Checking connection...</span>
-        </div>
-
-        <form class="supabase-config-form" id="formSupabaseConfig">
-          <div class="form-group">
-            <label for="cfgSupabaseUrl">Supabase Project URL</label>
-            <input type="url" id="cfgSupabaseUrl" placeholder="https://your-project.supabase.co" required />
-            <span class="field-hint">Found in Supabase Dashboard → Settings → API → Project URL</span>
-          </div>
-
-          <div class="form-group">
-            <label for="cfgSupabaseAnonKey">Supabase Anon Public Key</label>
-            <textarea id="cfgSupabaseAnonKey" rows="3" placeholder="eyJhbGciOiJIUzI1NiIsIn..." required></textarea>
-            <span class="field-hint">Found in Supabase Dashboard → Settings → API → Project API Keys (anon / public)</span>
-          </div>
-
-          <div class="supabase-guide-box">
-            <h4>Quick Database Setup:</h4>
-            <ol>
-              <li>Create a new project at <a href="https://supabase.com" target="_blank" rel="noopener">supabase.com</a></li>
-              <li>Open the <strong>SQL Editor</strong> in Supabase and paste the contents of <code>supabase_schema.sql</code></li>
-              <li>Click <strong>Run</strong> to create tables, RLS policies, storage, and admin RPC functions</li>
-              <li>Paste your credentials above and click <strong>Save & Connect</strong>!</li>
-            </ol>
-          </div>
-
-          <div class="auth-error-alert" id="supabaseConfigError" style="display:none;"></div>
-          <div class="auth-success-alert" id="supabaseConfigSuccess" style="display:none;"></div>
-
-          <div class="supabase-config-actions">
-            <button type="submit" class="btn btn-primary" id="btnSaveSupabaseConfig">
-              <span>Save & Connect</span>
-            </button>
-            <button type="button" class="btn btn-secondary btn-sm" id="btnClearSupabaseConfig">
-              <span>Reset Credentials</span>
-            </button>
-          </div>
-        </form>
       </div>
     </div>
 

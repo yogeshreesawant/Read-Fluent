@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In & Sign Up — Read Fluent</title>
+  <meta name="description" content="Sign in or register for Read Fluent Intelligent Speech & Document Studio.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+
+  <script src="api-client.js"></script>
+  <script>
+    // If user is already logged in, redirect directly to the main workspace
+    if (window.ReadFluentAPI && window.ReadFluentAPI.isAuthenticated()) {
+      window.location.replace('index.html');
+    }
+  </script>
+</head>
+<body class="login-page-body">
+  <!-- Top Minimal Header with Theme Switcher -->
+  <header class="login-header">
+    <div class="brand-logo">
+      <div class="logo-icon-wrap">
+        <svg class="logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="logoGradLogin" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#6366F1" />
+              <stop offset="50%" stop-color="#8B5CF6" />
+              <stop offset="100%" stop-color="#EC4899" />
+            </linearGradient>
+          </defs>
+          <rect width="40" height="40" rx="10" fill="url(#logoGradLogin)" />
+          <path d="M11 26V14C11 14 14 12 20 14V26C14 24 11 26 11 26Z" fill="white" fill-opacity="0.9" />
+          <path d="M29 26V14C29 14 26 12 20 14V26C26 24 29 26 29 26Z" fill="white" fill-opacity="0.75" />
+          <path d="M20 14V26" stroke="#4F46E5" stroke-width="1.5" stroke-linecap="round" />
+          <circle cx="20" cy="10" r="1.5" fill="#FDF2F8" />
+          <path d="M15 9C17.5 7.5 22.5 7.5 25 9" stroke="#FDF2F8" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1 class="brand-title">Read <span class="gradient-text">Fluent</span></h1>
+        <span class="brand-tagline">Intelligent Speech & Document Studio</span>
+      </div>
+    </div>
+
+    <button class="btn btn-icon btn-secondary" id="btnLoginThemeToggle" title="Toggle Light/Dark Theme">
+      <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/>
+        <line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- Centered Dedicated Auth Container -->
+  <main class="login-main-wrapper">
+    <div class="login-card-container">
+      <div class="login-brand-intro">
+        <h2>Welcome to your Reading Workspace</h2>
+        <p>Sign in to access your private, user-isolated cloud documents and audio bookmarks</p>
+      </div>
+
+      <!-- Auth Switcher Tabs -->
+      <div class="auth-tabs" id="loginAuthTabs">
+        <button class="auth-tab-btn active" id="tabLoginSignIn">Sign In</button>
+        <button class="auth-tab-btn" id="tabLoginSignUp">Create Account</button>
+      </div>
+
+      <!-- VIEW 1: SIGN IN FORM -->
+      <form class="auth-form" id="pageFormSignIn">
+        <div class="form-group">
+          <label for="loginEmail">Email Address</label>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="label-with-link">
+            <label for="loginPassword">Password</label>
+            <button type="button" class="btn-text-link" id="btnForgotLink">Forgot Password?</button>
+          </div>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password" />
+            <button type="button" class="btn-toggle-pw" aria-label="Toggle password visibility">👁️</button>
+          </div>
+        </div>
+
+        <div class="auth-error-alert" id="loginError" style="display:none;"></div>
+
+        <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitLogin">
+          <span class="btn-text">Sign In to Read Fluent</span>
+          <span class="btn-spinner" style="display:none;"></span>
+        </button>
+
+        <div class="auth-footer-prompt">
+          <span>New to Read Fluent?</span>
+          <button type="button" class="btn-text-link" id="linkToSignUp">Create a free account</button>
+        </div>
+      </form>
+
+      <!-- VIEW 2: SIGN UP FORM -->
+      <form class="auth-form" id="pageFormSignUp" style="display:none;">
+        <div class="form-group">
+          <label for="signUpFullName">Full Name</label>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input type="text" id="signUpFullName" placeholder="Taylor Swift" autocomplete="name" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="signUpEmail">Email Address</label>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input type="email" id="signUpEmail" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="signUpPassword">Password (minimum 6 characters)</label>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="signUpPassword" placeholder="••••••••" required minlength="6" autocomplete="new-password" />
+            <button type="button" class="btn-toggle-pw" aria-label="Toggle password visibility">👁️</button>
+          </div>
+        </div>
+
+        <div class="auth-error-alert" id="signUpErrorAlert" style="display:none;"></div>
+        <div class="auth-success-alert" id="signUpSuccessAlert" style="display:none;"></div>
+
+        <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitPageSignUp">
+          <span class="btn-text">Create Free Account</span>
+          <span class="btn-spinner" style="display:none;"></span>
+        </button>
+
+        <div class="auth-footer-prompt">
+          <span>Already have an account?</span>
+          <button type="button" class="btn-text-link" id="linkToSignIn">Sign In</button>
+        </div>
+      </form>
+
+      <!-- VIEW 3: FORGOT PASSWORD FORM -->
+      <form class="auth-form" id="pageFormForgot" style="display:none;">
+        <p class="form-info-text">
+          Enter your registered email address and we will send you a password reset recovery link.
+        </p>
+
+        <div class="form-group">
+          <label for="forgotEmailInput">Email Address</label>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input type="email" id="forgotEmailInput" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="auth-error-alert" id="forgotErrorAlert" style="display:none;"></div>
+        <div class="auth-success-alert" id="forgotSuccessAlert" style="display:none;"></div>
+
+        <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitPageForgot">
+          <span class="btn-text">Send Password Reset Link</span>
+          <span class="btn-spinner" style="display:none;"></span>
+        </button>
+
+        <div class="auth-footer-prompt">
+          <button type="button" class="btn-text-link" id="linkBackFromForgot">← Back to Sign In</button>
+        </div>
+      </form>
+
+      <!-- VIEW 4: SET NEW PASSWORD FORM (Triggered by recovery token) -->
+      <form class="auth-form" id="pageFormResetPassword" style="display:none;">
+        <div class="auth-pill-banner">🔐 Setting New Password</div>
+        <p class="form-info-text">
+          Choose a new password to restore access to your account.
+        </p>
+
+        <div class="form-group">
+          <label for="pageNewPassword">New Password</label>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="pageNewPassword" placeholder="••••••••" required minlength="6" />
+            <button type="button" class="btn-toggle-pw" aria-label="Toggle password visibility">👁️</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="pageConfirmNewPassword">Confirm New Password</label>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="pageConfirmNewPassword" placeholder="••••••••" required minlength="6" />
+          </div>
+        </div>
+
+        <div class="auth-error-alert" id="pageResetError" style="display:none;"></div>
+
+        <button type="submit" class="btn btn-primary btn-submit-auth" id="btnSubmitPageReset">
+          <span class="btn-text">Update Password & Open Workspace</span>
+          <span class="btn-spinner" style="display:none;"></span>
+        </button>
+      </form>
+
+      <div class="login-privacy-footer">
+        🔒 Protected by End-to-End User Isolation. Zero API keys exposed.
+      </div>
+    </div>
+  </main>
+
+  <!-- Standalone Login Logic Script -->
+  <script>
+    (function() {
+      // 1. Theme Management
+      const savedTheme = localStorage.getItem('readfluent_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      const btnTheme = document.getElementById('btnLoginThemeToggle');
+      if (btnTheme) {
+        btnTheme.addEventListener('click', () => {
+          const current = document.documentElement.getAttribute('data-theme');
+          const next = current === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', next);
+          localStorage.setItem('readfluent_theme', next);
+        });
+      }
+
+      // 2. Tab Elements
+      const tabSignIn = document.getElementById('tabLoginSignIn');
+      const tabSignUp = document.getElementById('tabLoginSignUp');
+      const formSignIn = document.getElementById('pageFormSignIn');
+      const formSignUp = document.getElementById('pageFormSignUp');
+      const formForgot = document.getElementById('pageFormForgot');
+      const formReset = document.getElementById('pageFormResetPassword');
+      const authTabs = document.getElementById('loginAuthTabs');
+
+      function switchTab(mode) {
+        formSignIn.style.display = 'none';
+        formSignUp.style.display = 'none';
+        formForgot.style.display = 'none';
+        formReset.style.display = 'none';
+        tabSignIn.classList.remove('active');
+        tabSignUp.classList.remove('active');
+        authTabs.style.display = 'flex';
+
+        if (mode === 'signin') {
+          tabSignIn.classList.add('active');
+          formSignIn.style.display = 'flex';
+          document.getElementById('loginEmail').focus();
+        } else if (mode === 'signup') {
+          tabSignUp.classList.add('active');
+          formSignUp.style.display = 'flex';
+          document.getElementById('signUpFullName').focus();
+        } else if (mode === 'forgot') {
+          formForgot.style.display = 'flex';
+          document.getElementById('forgotEmailInput').focus();
+        } else if (mode === 'reset') {
+          authTabs.style.display = 'none';
+          formReset.style.display = 'flex';
+          document.getElementById('pageNewPassword').focus();
+        }
+      }
+
+      tabSignIn.addEventListener('click', () => switchTab('signin'));
+      tabSignUp.addEventListener('click', () => switchTab('signup'));
+      document.getElementById('btnForgotLink').addEventListener('click', () => switchTab('forgot'));
+      document.getElementById('linkToSignUp').addEventListener('click', () => switchTab('signup'));
+      document.getElementById('linkToSignIn').addEventListener('click', () => switchTab('signin'));
+      document.getElementById('linkBackFromForgot').addEventListener('click', () => switchTab('signin'));
+
+      // Check URL for recovery hash
+      if (window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token='))) {
+        switchTab('reset');
+      }
+
+      // Password Toggles
+      document.querySelectorAll('.btn-toggle-pw').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const input = btn.previousElementSibling;
+          if (input && input.tagName === 'INPUT') {
+            input.type = input.type === 'password' ? 'text' : 'password';
+          }
+        });
+      });
+
+      // 3. Sign In Submission
+      formSignIn.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const errEl = document.getElementById('loginError');
+        const btn = document.getElementById('btnSubmitLogin');
+
+        try {
+          errEl.style.display = 'none';
+          btn.disabled = true;
+          btn.querySelector('.btn-text').textContent = 'Signing in...';
+
+          await window.ReadFluentAPI.login(email, password);
+
+          // On successful login, immediately redirect to index.html!
+          window.location.replace('index.html');
+        } catch (err) {
+          errEl.textContent = err.message || 'Invalid email or password.';
+          errEl.style.display = 'block';
+        } finally {
+          btn.disabled = false;
+          btn.querySelector('.btn-text').textContent = 'Sign In to Read Fluent';
+        }
+      });
+
+      // 4. Sign Up Submission
+      formSignUp.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fullName = document.getElementById('signUpFullName').value.trim();
+        const email = document.getElementById('signUpEmail').value.trim();
+        const password = document.getElementById('signUpPassword').value;
+        const errEl = document.getElementById('signUpErrorAlert');
+        const succEl = document.getElementById('signUpSuccessAlert');
+        const btn = document.getElementById('btnSubmitPageSignUp');
+
+        try {
+          errEl.style.display = 'none';
+          succEl.style.display = 'none';
+          btn.disabled = true;
+          btn.querySelector('.btn-text').textContent = 'Creating account...';
+
+          await window.ReadFluentAPI.signup(email, password, fullName);
+
+          succEl.textContent = 'Account created successfully! Signing you in...';
+          succEl.style.display = 'block';
+
+          // Attempt automatic login
+          try {
+            await window.ReadFluentAPI.login(email, password);
+            window.location.replace('index.html');
+          } catch (loginErr) {
+            // If confirmation is required by Supabase
+            succEl.textContent = 'Account created! Please check your email to confirm your account, then sign in.';
+            setTimeout(() => switchTab('signin'), 2000);
+          }
+        } catch (err) {
+          errEl.textContent = err.message || 'Account registration failed.';
+          errEl.style.display = 'block';
+        } finally {
+          btn.disabled = false;
+          btn.querySelector('.btn-text').textContent = 'Create Free Account';
+        }
+      });
+
+      // 5. Forgot Password Submission
+      formForgot.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('forgotEmailInput').value.trim();
+        const errEl = document.getElementById('forgotErrorAlert');
+        const succEl = document.getElementById('forgotSuccessAlert');
+        const btn = document.getElementById('btnSubmitPageForgot');
+
+        try {
+          errEl.style.display = 'none';
+          succEl.style.display = 'none';
+          btn.disabled = true;
+          btn.querySelector('.btn-text').textContent = 'Sending link...';
+
+          await window.ReadFluentAPI.forgotPassword(email);
+
+          succEl.textContent = `Password reset instructions sent to ${email}. Please check your inbox!`;
+          succEl.style.display = 'block';
+        } catch (err) {
+          errEl.textContent = err.message || 'Could not send recovery link.';
+          errEl.style.display = 'block';
+        } finally {
+          btn.disabled = false;
+          btn.querySelector('.btn-text').textContent = 'Send Password Reset Link';
+        }
+      });
+
+      // 6. Reset Password Submission
+      formReset.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pw = document.getElementById('pageNewPassword').value;
+        const confirmPw = document.getElementById('pageConfirmNewPassword').value;
+        const errEl = document.getElementById('pageResetError');
+        const btn = document.getElementById('btnSubmitPageReset');
+
+        if (pw !== confirmPw) {
+          errEl.textContent = 'Passwords do not match.';
+          errEl.style.display = 'block';
+          return;
+        }
+
+        try {
+          errEl.style.display = 'none';
+          btn.disabled = true;
+          btn.querySelector('.btn-text').textContent = 'Updating password...';
+
+          await window.ReadFluentAPI.updatePassword(pw);
+
+          // Success: redirect to index.html
+          window.location.replace('index.html');
+        } catch (err) {
+          errEl.textContent = err.message || 'Failed to update password.';
+          errEl.style.display = 'block';
+        } finally {
+          btn.disabled = false;
+          btn.querySelector('.btn-text').textContent = 'Update Password & Open Workspace';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -2892,3 +2892,74 @@ html, body {
   gap: 10px;
   margin-top: 10px;
 }
+
+/* ==========================================================================
+   STANDALONE SIGN UP & LOGIN PAGE STYLES (login.html)
+   ========================================================================== */
+.login-page-body {
+  overflow-y: auto !important;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at 50% 20%, rgba(99, 102, 241, 0.12) 0%, rgba(10, 13, 20, 0.98) 70%), var(--bg-primary);
+}
+
+.login-header {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 32px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.login-main-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px 50px;
+}
+
+.login-card-container {
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  padding: 36px 32px;
+  animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.login-brand-intro {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-brand-intro h2 {
+  font-family: var(--font-brand);
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.login-brand-intro p {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.login-privacy-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  text-align: center;
+  letter-spacing: 0.2px;
+}

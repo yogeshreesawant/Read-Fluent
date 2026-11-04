@@ -79,28 +79,30 @@ git push -u origin main
 
 For complete, step-by-step instructions with SQL queries, see [SUPABASE_SETUP.md](SUPABASE_SETUP.md).
 
-### Quick 3-Step Setup:
+### Quick Setup:
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open the **SQL Editor** in your Supabase dashboard and run the entire script [`supabase_schema.sql`](supabase_schema.sql).
-3. Connect credentials:
-   - Click the **"Supabase"** button in Read Fluent's top header and enter your **Project URL** and **Anon Key**, OR
-   - Paste them into [`config.js`](config.js):
-     ```javascript
-     window.READFLUENT_CONFIG = {
-       SUPABASE_URL: "https://<your-project-id>.supabase.co",
-       SUPABASE_ANON_KEY: "<your-anon-public-key>"
-     };
-     ```
+3. Copy `.env.example` to `.env` and add your Supabase credentials:
+   ```env
+   PORT=8080
+   SUPABASE_URL=https://<your-project-id>.supabase.co
+   SUPABASE_KEY=<your-supabase-key>
+   ```
+4. Start the server:
+   ```bash
+   node server.js
+   ```
+5. Open [http://localhost:8080](http://localhost:8080) — you will be greeted by the dedicated login/signup screen.
 
 ### Creating Your First Admin:
-1. Sign up through the Read Fluent web UI (e.g. `admin@example.com`).
+1. Sign up through `login.html` (e.g. `admin@example.com`).
 2. Run this in the Supabase SQL Editor:
    ```sql
    UPDATE public.profiles
    SET role = 'admin'
    WHERE email = 'admin@example.com';
    ```
-3. Refresh the page. You will now see the **Admin** badge and have access to the **Admin Console**!
+3. Sign in as `admin@example.com`. You will now see the **Admin** badge and have access to the **Admin Console** to manage all users and documents!
 
 ---
 
@@ -108,24 +110,30 @@ For complete, step-by-step instructions with SQL queries, see [SUPABASE_SETUP.md
 
 ```
 c:\ReadFluent/
-├── index.html               # Main workspace, reader, auth modals & admin console
+├── index.html               # Main workspace, reader studio & admin console (Auth-Guarded)
+├── login.html               # Dedicated Sign In, Sign Up, and Password Recovery page
+├── server.js                # Secure Node.js proxy server (keeps Supabase credentials 100% hidden)
+├── api-client.js            # Secure frontend client interacting with proxy endpoints (/api/*)
 ├── style.css                # Obsidian Dark & Clean Light design tokens, glassmorphism styles
 ├── app.js                   # Application controller, speech engine & UI bindings
-├── supabase-client.js       # Supabase service (Auth, RLS storage, Admin RPC)
-├── config.js                # Supabase Project URL & Anon Key configuration
 ├── supabase_schema.sql      # Database schema, RLS policies, storage bucket & admin functions
+├── .env.example             # Template for server environment variables
 ├── SUPABASE_SETUP.md        # Step-by-step Supabase backend guide
 ├── PRD.md                   # Product Requirements Document
-├── .gitignore               # Ignored files for clean git tracking
+├── .gitignore               # Ignored files for clean git tracking (.env, node_modules)
 └── .github/
     └── workflows/
-        └── deploy.yml       # Automated GitHub Pages CI/CD deployment
+        └── deploy.yml       # GitHub Actions CI/CD deployment
 ```
 
 ---
 
 ## 🛡️ Security & Privacy Architecture
 
+- **Zero Credential Exposure**: Supabase URL and API keys are stored exclusively in `.env` on the backend server. The browser client receives zero sensitive keys or database URLs.
+- **Strict Authentication Guard**: `index.html` blocks unauthenticated access in the `<head>` and instantly redirects visitors to `login.html`.
+- **User-Wise Isolation**: All documents, progress metrics, voice preferences, and file attachments are strictly tied to the logged-in user's UUID.
 - **Row Level Security (RLS)**: PostgreSQL Row Level Security is enforced on both `public.profiles` and `public.documents`. Supabase guarantees that authenticated users cannot read or modify another user's documents.
 - **`SECURITY DEFINER` Admin RPC**: Admin endpoints (`admin_create_user`, `admin_delete_user`, `admin_update_user_role`, `admin_list_users`) verify that the calling user has `role = 'admin'` before performing privileged actions.
 - **Client-Side Document Parsing**: PDF and Word document extraction occurs entirely inside the user's browser via PDF.js and Mammoth.js before being saved to user storage.
+

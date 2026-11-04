@@ -21,7 +21,7 @@
   }
 
   /* ==========================================================================
-     1. STORAGE ENGINE (SUPABASE USER-WISE CLOUD + LOCAL GUEST STORAGE FALLBACK)
+     1. STORAGE ENGINE (USER-WISE ISOLATED CLOUD VIA SECURE API CLIENT)
      ========================================================================== */
   class LibraryStore {
     constructor() {
@@ -29,23 +29,14 @@
     }
 
     isCloudActive() {
-      return !!(window.ReadFluentSupabase && window.ReadFluentSupabase.isAuthenticated());
+      return !!(window.ReadFluentAPI && window.ReadFluentAPI.isAuthenticated());
     }
 
     getAll() {
       if (this.isCloudActive()) {
-        return window.ReadFluentSupabase.cachedDocuments || [];
+        return window.ReadFluentAPI.cachedDocuments || [];
       }
-      try {
-        const raw = localStorage.getItem(this.storageKey);
-        if (!raw) return [];
-        const items = JSON.parse(raw);
-        if (!Array.isArray(items)) return [];
-        return items.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      } catch (e) {
-        console.error('Error reading library from localStorage:', e);
-        return [];
-      }
+      return [];
     }
 
     getById(id) {
@@ -79,78 +70,38 @@
 
     async syncCloud() {
       if (this.isCloudActive()) {
-        return await window.ReadFluentSupabase.fetchUserDocuments();
+        return await window.ReadFluentAPI.getDocuments();
       }
-      return this.getAll();
+      return [];
     }
 
-    async save(doc, fileBlob = null) {
+    async save(doc) {
       const title = (doc.title || '').trim();
       if (this.isTitleTaken(title, doc.id)) {
-        const err = new Error(`DUPLICATE_TITLE: A file named "${title}" already exists in the library.`);
+        const err = new Error(`DUPLICATE_TITLE: A file named "${title}" already exists in your library.`);
         err.code = 'DUPLICATE_TITLE';
         err.duplicateTitle = title;
         throw err;
       }
 
       if (this.isCloudActive()) {
-        return await window.ReadFluentSupabase.saveDocument(doc, fileBlob);
+        return await window.ReadFluentAPI.saveDocument(doc);
       }
-
-      // Local storage fallback for guest / unauthenticated mode
-      try {
-        const items = this.getAll();
-        const now = Date.now();
-        doc.updatedAt = now;
-
-        if (!doc.id) {
-          doc.id = 'doc_' + now + '_' + Math.random().toString(36).substr(2, 6);
-          doc.createdAt = now;
-        }
-
-        const existingIndex = items.findIndex((item) => String(item.id) === String(doc.id));
-        if (existingIndex >= 0) {
-          items[existingIndex] = { ...items[existingIndex], ...doc, updatedAt: now };
-        } else {
-          items.unshift(doc);
-        }
-
-        localStorage.setItem(this.storageKey, JSON.stringify(items));
-        return doc.id;
-      } catch (e) {
-        console.error('Error saving to localStorage:', e);
-        throw e;
-      }
+      throw new Error('Authentication required: Please sign in to save documents.');
     }
 
     async delete(id) {
       if (this.isCloudActive()) {
-        return await window.ReadFluentSupabase.deleteDocument(id);
+        return await window.ReadFluentAPI.deleteDocument(id);
       }
-
-      try {
-        let items = this.getAll();
-        items = items.filter((item) => String(item.id) !== String(id));
-        localStorage.setItem(this.storageKey, JSON.stringify(items));
-        return true;
-      } catch (e) {
-        console.error('Error deleting from localStorage:', e);
-        return false;
-      }
+      return false;
     }
 
     async clearAll() {
       if (this.isCloudActive()) {
-        return await window.ReadFluentSupabase.clearAllUserDocuments();
+        return await window.ReadFluentAPI.clearAllDocuments();
       }
-
-      try {
-        localStorage.removeItem(this.storageKey);
-        return true;
-      } catch (e) {
-        console.error('Error clearing localStorage:', e);
-        return false;
-      }
+      return false;
     }
   }
 
@@ -562,23 +513,7 @@
         librarySyncText: document.getElementById('librarySyncText'),
         btnLibrarySyncAction: document.getElementById('btnLibrarySyncAction'),
 
-        // Supabase Status & Config
-        btnSupabaseSettingsToggle: document.getElementById('btnSupabaseSettingsToggle'),
-        supabaseStatusDot: document.getElementById('supabaseStatusDot'),
-        supabaseConfigModal: document.getElementById('supabaseConfigModal'),
-        btnCloseSupabaseConfig: document.getElementById('btnCloseSupabaseConfig'),
-        formSupabaseConfig: document.getElementById('formSupabaseConfig'),
-        cfgSupabaseUrl: document.getElementById('cfgSupabaseUrl'),
-        cfgSupabaseAnonKey: document.getElementById('cfgSupabaseAnonKey'),
-        btnSaveSupabaseConfig: document.getElementById('btnSaveSupabaseConfig'),
-        btnClearSupabaseConfig: document.getElementById('btnClearSupabaseConfig'),
-        modalSupabaseDot: document.getElementById('modalSupabaseDot'),
-        modalSupabaseStatusText: document.getElementById('modalSupabaseStatusText'),
-        supabaseConfigError: document.getElementById('supabaseConfigError'),
-        supabaseConfigSuccess: document.getElementById('supabaseConfigSuccess'),
-
-        // Auth Header Elements
-        btnAuthOpen: document.getElementById('btnAuthOpen'),
+        // User Profile Header Elements
         userMenuContainer: document.getElementById('userMenuContainer'),
         btnUserMenuTrigger: document.getElementById('btnUserMenuTrigger'),
         userDropdownPopover: document.getElementById('userDropdownPopover'),
@@ -591,43 +526,7 @@
         dropdownUserRolePill: document.getElementById('dropdownUserRolePill'),
         btnMenuOpenLibrary: document.getElementById('btnMenuOpenLibrary'),
         btnMenuOpenAdmin: document.getElementById('btnMenuOpenAdmin'),
-        btnMenuSupabaseSettings: document.getElementById('btnMenuSupabaseSettings'),
         btnMenuSignOut: document.getElementById('btnMenuSignOut'),
-
-        // Auth Modal Elements
-        authModal: document.getElementById('authModal'),
-        btnCloseAuthModal: document.getElementById('btnCloseAuthModal'),
-        authModalHeading: document.getElementById('authModalHeading'),
-        authModalSubheading: document.getElementById('authModalSubheading'),
-        tabSignIn: document.getElementById('tabSignIn'),
-        tabSignUp: document.getElementById('tabSignUp'),
-        tabForgot: document.getElementById('tabForgot'),
-        formSignIn: document.getElementById('formSignIn'),
-        inputSignInEmail: document.getElementById('inputSignInEmail'),
-        inputSignInPassword: document.getElementById('inputSignInPassword'),
-        signInError: document.getElementById('signInError'),
-        btnSubmitSignIn: document.getElementById('btnSubmitSignIn'),
-        btnLinkForgotFromSignIn: document.getElementById('btnLinkForgotFromSignIn'),
-        btnSwitchToSignUp: document.getElementById('btnSwitchToSignUp'),
-        formSignUp: document.getElementById('formSignUp'),
-        inputSignUpName: document.getElementById('inputSignUpName'),
-        inputSignUpEmail: document.getElementById('inputSignUpEmail'),
-        inputSignUpPassword: document.getElementById('inputSignUpPassword'),
-        signUpError: document.getElementById('signUpError'),
-        signUpSuccess: document.getElementById('signUpSuccess'),
-        btnSubmitSignUp: document.getElementById('btnSubmitSignUp'),
-        btnSwitchToSignIn: document.getElementById('btnSwitchToSignIn'),
-        formForgot: document.getElementById('formForgot'),
-        inputForgotEmail: document.getElementById('inputForgotEmail'),
-        forgotError: document.getElementById('forgotError'),
-        forgotSuccess: document.getElementById('forgotSuccess'),
-        btnSubmitForgot: document.getElementById('btnSubmitForgot'),
-        btnForgotBackToSignIn: document.getElementById('btnForgotBackToSignIn'),
-        formResetPassword: document.getElementById('formResetPassword'),
-        inputNewPassword: document.getElementById('inputNewPassword'),
-        inputConfirmNewPassword: document.getElementById('inputConfirmNewPassword'),
-        resetPasswordError: document.getElementById('resetPasswordError'),
-        btnSubmitResetPassword: document.getElementById('btnSubmitResetPassword'),
 
         // Admin Dashboard Elements
         adminModal: document.getElementById('adminModal'),
@@ -692,7 +591,7 @@
       this.initTheme();
       this.initVoices();
       this.bindEvents();
-      this.initAuthAndSupabase();
+      this.initUserSession();
       this.initAdminDashboard();
       this.updateStats();
       this.updateLibraryCount();
@@ -1931,116 +1830,65 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
     }
 
     /* ========================================================================
-       SUPABASE & USER AUTHENTICATION CONTROLLERS
+       USER SESSION & CLOUD SYNC CONTROLLERS
        ======================================================================== */
-    initAuthAndSupabase() {
-      // 1. Supabase Backend Settings Modal Handlers
-      if (this.dom.btnSupabaseSettingsToggle) {
-        this.dom.btnSupabaseSettingsToggle.addEventListener('click', () => this.openSupabaseConfigModal());
-      }
-      if (this.dom.btnCloseSupabaseConfig) {
-        this.dom.btnCloseSupabaseConfig.addEventListener('click', () => this.closeSupabaseConfigModal());
-      }
-      if (this.dom.formSupabaseConfig) {
-        this.dom.formSupabaseConfig.addEventListener('submit', (e) => {
-          e.preventDefault();
-          const url = (this.dom.cfgSupabaseUrl.value || '').trim();
-          const anonKey = (this.dom.cfgSupabaseAnonKey.value || '').trim();
-
-          try {
-            if (!window.ReadFluentSupabase) {
-              throw new Error('Supabase client module is not loaded.');
-            }
-            window.ReadFluentSupabase.saveCredentials(url, anonKey);
-            this.dom.supabaseConfigError.style.display = 'none';
-            this.dom.supabaseConfigSuccess.textContent = 'Credentials saved! Connecting to Supabase project...';
-            this.dom.supabaseConfigSuccess.style.display = 'block';
-            this.updateSupabaseStatusBadge();
-            this.showToast('Supabase credentials saved successfully', 'success');
-            setTimeout(() => {
-              this.closeSupabaseConfigModal();
-            }, 1200);
-          } catch (err) {
-            this.dom.supabaseConfigSuccess.style.display = 'none';
-            this.dom.supabaseConfigError.textContent = err.message || 'Invalid credentials format';
-            this.dom.supabaseConfigError.style.display = 'block';
-          }
-        });
+    async initUserSession() {
+      // Strict Session Check: if not authenticated, redirect to login.html
+      if (!window.ReadFluentAPI || !window.ReadFluentAPI.isAuthenticated()) {
+        window.location.replace('login.html');
+        return;
       }
 
-      if (this.dom.btnClearSupabaseConfig) {
-        this.dom.btnClearSupabaseConfig.addEventListener('click', () => {
-          if (confirm('Reset stored Supabase credentials? The workspace will revert to local guest mode.')) {
-            if (window.ReadFluentSupabase) {
-              window.ReadFluentSupabase.clearCredentials();
-            }
-            this.dom.cfgSupabaseUrl.value = '';
-            this.dom.cfgSupabaseAnonKey.value = '';
-            this.updateSupabaseStatusBadge();
-            this.showToast('Supabase configuration cleared. Reverted to local guest mode.', 'info');
-          }
-        });
+      const user = window.ReadFluentAPI.getUser();
+      const profile = window.ReadFluentAPI.getProfile();
+      const userEmail = (user && user.email) || 'user@readfluent.com';
+      const displayName = (profile && profile.full_name) || userEmail.split('@')[0];
+      const initial = (displayName[0] || 'U').toUpperCase();
+      const isAdmin = window.ReadFluentAPI.isAdmin();
+
+      // Update Header Profile Elements
+      if (this.dom.headerUserAvatar) this.dom.headerUserAvatar.textContent = initial;
+      if (this.dom.dropdownUserAvatar) this.dom.dropdownUserAvatar.textContent = initial;
+      if (this.dom.headerUserEmail) this.dom.headerUserEmail.textContent = userEmail;
+      if (this.dom.dropdownUserEmailText) this.dom.dropdownUserEmailText.textContent = userEmail;
+      if (this.dom.dropdownUserFullName) this.dom.dropdownUserFullName.textContent = displayName;
+
+      if (this.dom.headerUserRole) {
+        this.dom.headerUserRole.textContent = isAdmin ? 'Admin' : 'User';
+        if (isAdmin) {
+          this.dom.headerUserRole.classList.add('admin-role-tag');
+        } else {
+          this.dom.headerUserRole.classList.remove('admin-role-tag');
+        }
       }
 
-      // Initial Supabase status badge check
-      this.updateSupabaseStatusBadge();
+      if (this.dom.dropdownUserRolePill) {
+        this.dom.dropdownUserRolePill.textContent = isAdmin ? 'Administrator' : 'Standard User';
+        if (isAdmin) {
+          this.dom.dropdownUserRolePill.classList.add('role-admin');
+        } else {
+          this.dom.dropdownUserRolePill.classList.remove('role-admin');
+        }
+      }
 
-      // 2. Auth Modal Triggers & Controls
-      if (this.dom.btnAuthOpen) {
-        this.dom.btnAuthOpen.addEventListener('click', () => this.openAuthModal('signin'));
+      // Show Admin Dashboard button if admin
+      if (this.dom.btnMenuOpenAdmin) {
+        this.dom.btnMenuOpenAdmin.style.display = isAdmin ? 'flex' : 'none';
+      }
+
+      // Update Library Sync Banner
+      if (this.dom.librarySyncDot) {
+        this.dom.librarySyncDot.className = 'sync-dot sync-dot-online';
+      }
+      if (this.dom.librarySyncText) {
+        this.dom.librarySyncText.textContent = `Cloud Synced (${userEmail})`;
       }
       if (this.dom.btnLibrarySyncAction) {
-        this.dom.btnLibrarySyncAction.addEventListener('click', async () => {
-          if (window.ReadFluentSupabase && window.ReadFluentSupabase.isAuthenticated()) {
-            await window.ReadFluentSupabase.signOut();
-            this.showToast('Signed out of cloud account.', 'info');
-          } else {
-            this.openAuthModal('signin');
-          }
-        });
-      }
-      if (this.dom.btnCloseAuthModal) {
-        this.dom.btnCloseAuthModal.addEventListener('click', () => this.closeAuthModal());
+        this.dom.btnLibrarySyncAction.textContent = 'Sign Out';
+        this.dom.btnLibrarySyncAction.onclick = () => window.ReadFluentAPI.logout();
       }
 
-      // Tab Switching
-      if (this.dom.tabSignIn) {
-        this.dom.tabSignIn.addEventListener('click', () => this.switchAuthTab('signin'));
-      }
-      if (this.dom.tabSignUp) {
-        this.dom.tabSignUp.addEventListener('click', () => this.switchAuthTab('signup'));
-      }
-      if (this.dom.tabForgot) {
-        this.dom.tabForgot.addEventListener('click', () => this.switchAuthTab('forgot'));
-      }
-      if (this.dom.btnLinkForgotFromSignIn) {
-        this.dom.btnLinkForgotFromSignIn.addEventListener('click', () => this.switchAuthTab('forgot'));
-      }
-      if (this.dom.btnSwitchToSignUp) {
-        this.dom.btnSwitchToSignUp.addEventListener('click', () => this.switchAuthTab('signup'));
-      }
-      if (this.dom.btnSwitchToSignIn) {
-        this.dom.btnSwitchToSignIn.addEventListener('click', () => this.switchAuthTab('signin'));
-      }
-      if (this.dom.btnForgotBackToSignIn) {
-        this.dom.btnForgotBackToSignIn.addEventListener('click', () => this.switchAuthTab('signin'));
-      }
-
-      // Password visibility toggles
-      if (this.dom.authModal) {
-        const toggleButtons = this.dom.authModal.querySelectorAll('.btn-toggle-pw');
-        toggleButtons.forEach((btn) => {
-          btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const input = btn.previousElementSibling;
-            if (input && input.tagName === 'INPUT') {
-              input.type = input.type === 'password' ? 'text' : 'password';
-            }
-          });
-        });
-      }
-
-      // 3. User Menu Dropdown Controls
+      // User Dropdown Trigger Handlers
       if (this.dom.btnUserMenuTrigger) {
         this.dom.btnUserMenuTrigger.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -2068,353 +1916,27 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
           this.openLibraryDrawer();
         });
       }
+
       if (this.dom.btnMenuOpenAdmin) {
         this.dom.btnMenuOpenAdmin.addEventListener('click', () => {
           this.dom.userDropdownPopover.style.display = 'none';
           this.openAdminModal();
         });
       }
-      if (this.dom.btnMenuSupabaseSettings) {
-        this.dom.btnMenuSupabaseSettings.addEventListener('click', () => {
-          this.dom.userDropdownPopover.style.display = 'none';
-          this.openSupabaseConfigModal();
-        });
-      }
+
       if (this.dom.btnMenuSignOut) {
         this.dom.btnMenuSignOut.addEventListener('click', async () => {
-          this.dom.userDropdownPopover.style.display = 'none';
-          if (window.ReadFluentSupabase) {
-            await window.ReadFluentSupabase.signOut();
-            this.showToast('Signed out of cloud account.', 'info');
-          }
+          await window.ReadFluentAPI.logout();
         });
       }
 
-      // 4. Form Submissions
-      // Sign In Form
-      if (this.dom.formSignIn) {
-        this.dom.formSignIn.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const email = (this.dom.inputSignInEmail.value || '').trim();
-          const password = this.dom.inputSignInPassword.value;
-          const submitBtn = this.dom.btnSubmitSignIn;
-
-          try {
-            this.dom.signInError.style.display = 'none';
-            this.setButtonLoading(submitBtn, true, 'Signing in...');
-
-            if (!window.ReadFluentSupabase || !window.ReadFluentSupabase.isConfigured()) {
-              throw new Error('Supabase backend is not configured yet. Click "Supabase" in the header to set your Project URL.');
-            }
-
-            await window.ReadFluentSupabase.signIn(email, password);
-            this.closeAuthModal();
-            this.showToast(`Welcome back, ${email}!`, 'success');
-          } catch (err) {
-            this.dom.signInError.textContent = err.message || 'Invalid email or password.';
-            this.dom.signInError.style.display = 'block';
-          } finally {
-            this.setButtonLoading(submitBtn, false, 'Sign In to Workspace');
-          }
-        });
-      }
-
-      // Sign Up Form
-      if (this.dom.formSignUp) {
-        this.dom.formSignUp.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const email = (this.dom.inputSignUpEmail.value || '').trim();
-          const password = this.dom.inputSignUpPassword.value;
-          const fullName = (this.dom.inputSignUpName.value || '').trim();
-          const submitBtn = this.dom.btnSubmitSignUp;
-
-          try {
-            this.dom.signUpError.style.display = 'none';
-            this.dom.signUpSuccess.style.display = 'none';
-            this.setButtonLoading(submitBtn, true, 'Creating account...');
-
-            if (!window.ReadFluentSupabase || !window.ReadFluentSupabase.isConfigured()) {
-              throw new Error('Supabase backend is not configured yet. Click "Supabase" in the header to set your Project URL.');
-            }
-
-            await window.ReadFluentSupabase.signUp(email, password, fullName);
-            this.dom.signUpSuccess.textContent = 'Account created successfully! If email verification is enabled on your Supabase project, please check your inbox.';
-            this.dom.signUpSuccess.style.display = 'block';
-            this.showToast('Account registered! You can now sign in.', 'success');
-            setTimeout(() => this.switchAuthTab('signin'), 1800);
-          } catch (err) {
-            this.dom.signUpError.textContent = err.message || 'Registration failed.';
-            this.dom.signUpError.style.display = 'block';
-          } finally {
-            this.setButtonLoading(submitBtn, false, 'Create Free Account');
-          }
-        });
-      }
-
-      // Forgot Password Form
-      if (this.dom.formForgot) {
-        this.dom.formForgot.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const email = (this.dom.inputForgotEmail.value || '').trim();
-          const submitBtn = this.dom.btnSubmitForgot;
-
-          try {
-            this.dom.forgotError.style.display = 'none';
-            this.dom.forgotSuccess.style.display = 'none';
-            this.setButtonLoading(submitBtn, true, 'Sending link...');
-
-            if (!window.ReadFluentSupabase || !window.ReadFluentSupabase.isConfigured()) {
-              throw new Error('Supabase backend is not configured yet. Click "Supabase" in the header.');
-            }
-
-            await window.ReadFluentSupabase.resetPasswordForEmail(email);
-            this.dom.forgotSuccess.textContent = `Password reset instructions have been sent to ${email}. Check your inbox!`;
-            this.dom.forgotSuccess.style.display = 'block';
-            this.showToast('Reset email sent!', 'info');
-          } catch (err) {
-            this.dom.forgotError.textContent = err.message || 'Could not send reset email.';
-            this.dom.forgotError.style.display = 'block';
-          } finally {
-            this.setButtonLoading(submitBtn, false, 'Send Password Reset Link');
-          }
-        });
-      }
-
-      // Set New Password Form (from recovery link)
-      if (this.dom.formResetPassword) {
-        this.dom.formResetPassword.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const newPw = this.dom.inputNewPassword.value;
-          const confirmPw = this.dom.inputConfirmNewPassword.value;
-          const submitBtn = this.dom.btnSubmitResetPassword;
-
-          if (newPw !== confirmPw) {
-            this.dom.resetPasswordError.textContent = 'Passwords do not match. Please verify.';
-            this.dom.resetPasswordError.style.display = 'block';
-            return;
-          }
-
-          try {
-            this.dom.resetPasswordError.style.display = 'none';
-            this.setButtonLoading(submitBtn, true, 'Updating password...');
-
-            await window.ReadFluentSupabase.updatePassword(newPw);
-            this.closeAuthModal();
-            this.showToast('Your password was updated successfully! Welcome back.', 'success');
-            // Remove recovery hash from URL
-            if (window.history && window.history.replaceState) {
-              window.history.replaceState(null, '', window.location.pathname);
-            }
-          } catch (err) {
-            this.dom.resetPasswordError.textContent = err.message || 'Failed to update password.';
-            this.dom.resetPasswordError.style.display = 'block';
-          } finally {
-            this.setButtonLoading(submitBtn, false, 'Update Password & Continue');
-          }
-        });
-      }
-
-      // 5. Recovery Link Detection in URL Hash
-      const hash = window.location.hash || '';
-      if (hash.includes('type=recovery') || hash.includes('access_token=')) {
-        setTimeout(() => {
-          this.openAuthModal('reset');
-        }, 300);
-      }
-
-      // 6. Supabase Auth State Change Listener
-      if (window.ReadFluentSupabase) {
-        window.ReadFluentSupabase.onAuthStateChange(async (event, user, profile) => {
-          await this.handleAuthStateChange(event, user, profile);
-        });
-      }
-    }
-
-    updateSupabaseStatusBadge() {
-      const isConfigured = window.ReadFluentSupabase && window.ReadFluentSupabase.isConfigured();
-      if (this.dom.supabaseStatusDot) {
-        this.dom.supabaseStatusDot.className = 'status-indicator-dot ' + (isConfigured ? 'status-dot-online' : 'status-dot-offline');
-      }
-      if (this.dom.modalSupabaseDot) {
-        this.dom.modalSupabaseDot.className = 'status-indicator-dot ' + (isConfigured ? 'status-dot-online' : 'status-dot-offline');
-      }
-      if (this.dom.modalSupabaseStatusText) {
-        this.dom.modalSupabaseStatusText.textContent = isConfigured
-          ? 'Connected to Supabase Project'
-          : 'Supabase Backend Not Configured (Local Guest Mode)';
-      }
-    }
-
-    async handleAuthStateChange(event, user, profile) {
-      if (user) {
-        // Authenticated State
-        if (this.dom.userMenuContainer) this.dom.userMenuContainer.style.display = 'block';
-        if (this.dom.btnAuthOpen) this.dom.btnAuthOpen.style.display = 'none';
-
-        const displayName = (profile && profile.full_name) || user.email.split('@')[0];
-        const initial = displayName[0].toUpperCase();
-        const isAdmin = profile && profile.role === 'admin';
-
-        if (this.dom.headerUserAvatar) this.dom.headerUserAvatar.textContent = initial;
-        if (this.dom.dropdownUserAvatar) this.dom.dropdownUserAvatar.textContent = initial;
-        if (this.dom.headerUserEmail) this.dom.headerUserEmail.textContent = user.email;
-        if (this.dom.dropdownUserEmailText) this.dom.dropdownUserEmailText.textContent = user.email;
-        if (this.dom.dropdownUserFullName) this.dom.dropdownUserFullName.textContent = displayName;
-
-        if (this.dom.headerUserRole) {
-          this.dom.headerUserRole.textContent = isAdmin ? 'Admin' : 'User';
-          if (isAdmin) {
-            this.dom.headerUserRole.classList.add('admin-role-tag');
-          } else {
-            this.dom.headerUserRole.classList.remove('admin-role-tag');
-          }
-        }
-
-        if (this.dom.dropdownUserRolePill) {
-          this.dom.dropdownUserRolePill.textContent = isAdmin ? 'Administrator' : 'Standard User';
-          if (isAdmin) {
-            this.dom.dropdownUserRolePill.classList.add('role-admin');
-          } else {
-            this.dom.dropdownUserRolePill.classList.remove('role-admin');
-          }
-        }
-
-        if (this.dom.btnMenuOpenAdmin) {
-          this.dom.btnMenuOpenAdmin.style.display = isAdmin ? 'flex' : 'none';
-        }
-
-        if (this.dom.librarySyncDot) {
-          this.dom.librarySyncDot.className = 'sync-dot sync-dot-online';
-        }
-        if (this.dom.librarySyncText) {
-          this.dom.librarySyncText.textContent = `Cloud Synced (${user.email})`;
-        }
-        if (this.dom.btnLibrarySyncAction) {
-          this.dom.btnLibrarySyncAction.textContent = 'Sign Out';
-        }
-
-        // Synchronize user-isolated cloud documents
-        try {
-          await this.library.syncCloud();
-          this.updateLibraryCount();
-          this.renderLibraryList();
-        } catch (e) {
-          console.error('Error synchronizing cloud library on login:', e);
-        }
-      } else {
-        // Unauthenticated State
-        if (this.dom.userMenuContainer) this.dom.userMenuContainer.style.display = 'none';
-        if (this.dom.btnAuthOpen) this.dom.btnAuthOpen.style.display = 'inline-flex';
-        if (this.dom.btnMenuOpenAdmin) this.dom.btnMenuOpenAdmin.style.display = 'none';
-
-        if (this.dom.librarySyncDot) {
-          this.dom.librarySyncDot.className = 'sync-dot sync-dot-offline';
-        }
-        if (this.dom.librarySyncText) {
-          this.dom.librarySyncText.textContent = 'Guest Mode (Local Storage Only)';
-        }
-        if (this.dom.btnLibrarySyncAction) {
-          this.dom.btnLibrarySyncAction.textContent = 'Sign In to Sync';
-        }
-
+      // Load user's private cloud documents
+      try {
+        await this.library.syncCloud();
         this.updateLibraryCount();
         this.renderLibraryList();
-      }
-    }
-
-    openAuthModal(tabName = 'signin') {
-      if (!this.dom.authModal) return;
-      this.dom.authModal.style.display = 'flex';
-      this.switchAuthTab(tabName);
-    }
-
-    closeAuthModal() {
-      if (!this.dom.authModal) return;
-      this.dom.authModal.style.display = 'none';
-    }
-
-    switchAuthTab(tabName) {
-      const tabs = [this.dom.tabSignIn, this.dom.tabSignUp, this.dom.tabForgot].filter(Boolean);
-      tabs.forEach((t) => t.classList.remove('active'));
-
-      const forms = [
-        this.dom.formSignIn,
-        this.dom.formSignUp,
-        this.dom.formForgot,
-        this.dom.formResetPassword
-      ].filter(Boolean);
-      forms.forEach((f) => (f.style.display = 'none'));
-
-      // Clear alert messages
-      const alerts = [
-        this.dom.signInError,
-        this.dom.signUpError,
-        this.dom.signUpSuccess,
-        this.dom.forgotError,
-        this.dom.forgotSuccess,
-        this.dom.resetPasswordError
-      ].filter(Boolean);
-      alerts.forEach((a) => (a.style.display = 'none'));
-
-      const tabsContainer = document.getElementById('authTabs');
-      if (tabsContainer) tabsContainer.style.display = tabName === 'reset' ? 'none' : 'flex';
-
-      if (tabName === 'signin') {
-        if (this.dom.tabSignIn) this.dom.tabSignIn.classList.add('active');
-        if (this.dom.formSignIn) this.dom.formSignIn.style.display = 'flex';
-        if (this.dom.authModalHeading) this.dom.authModalHeading.textContent = 'Sign In to Read Fluent';
-        if (this.dom.authModalSubheading) this.dom.authModalSubheading.textContent = 'Access your personal reading workspace';
-        setTimeout(() => this.dom.inputSignInEmail && this.dom.inputSignInEmail.focus(), 60);
-      } else if (tabName === 'signup') {
-        if (this.dom.tabSignUp) this.dom.tabSignUp.classList.add('active');
-        if (this.dom.formSignUp) this.dom.formSignUp.style.display = 'flex';
-        if (this.dom.authModalHeading) this.dom.authModalHeading.textContent = 'Create Free Account';
-        if (this.dom.authModalSubheading) this.dom.authModalSubheading.textContent = 'Store documents user-wise in your private cloud library';
-        setTimeout(() => this.dom.inputSignUpName && this.dom.inputSignUpName.focus(), 60);
-      } else if (tabName === 'forgot') {
-        if (this.dom.tabForgot) this.dom.tabForgot.classList.add('active');
-        if (this.dom.formForgot) this.dom.formForgot.style.display = 'flex';
-        if (this.dom.authModalHeading) this.dom.authModalHeading.textContent = 'Reset Account Password';
-        if (this.dom.authModalSubheading) this.dom.authModalSubheading.textContent = 'Receive a secure recovery link via email';
-        setTimeout(() => this.dom.inputForgotEmail && this.dom.inputForgotEmail.focus(), 60);
-      } else if (tabName === 'reset') {
-        if (this.dom.formResetPassword) this.dom.formResetPassword.style.display = 'flex';
-        if (this.dom.authModalHeading) this.dom.authModalHeading.textContent = 'Set New Password';
-        if (this.dom.authModalSubheading) this.dom.authModalSubheading.textContent = 'Enter a new password for your account';
-        setTimeout(() => this.dom.inputNewPassword && this.dom.inputNewPassword.focus(), 60);
-      }
-    }
-
-    openSupabaseConfigModal() {
-      if (!this.dom.supabaseConfigModal) return;
-      this.dom.supabaseConfigModal.style.display = 'flex';
-
-      const config = window.ReadFluentSupabase ? window.ReadFluentSupabase.getConfig() : { url: '', anonKey: '' };
-      if (this.dom.cfgSupabaseUrl) this.dom.cfgSupabaseUrl.value = config.url || '';
-      if (this.dom.cfgSupabaseAnonKey) this.dom.cfgSupabaseAnonKey.value = config.anonKey || '';
-
-      if (this.dom.supabaseConfigError) this.dom.supabaseConfigError.style.display = 'none';
-      if (this.dom.supabaseConfigSuccess) this.dom.supabaseConfigSuccess.style.display = 'none';
-
-      this.updateSupabaseStatusBadge();
-    }
-
-    closeSupabaseConfigModal() {
-      if (!this.dom.supabaseConfigModal) return;
-      this.dom.supabaseConfigModal.style.display = 'none';
-    }
-
-    setButtonLoading(btn, isLoading, originalText = '') {
-      if (!btn) return;
-      btn.disabled = isLoading;
-      const textSpan = btn.querySelector('.btn-text');
-      const spinnerSpan = btn.querySelector('.btn-spinner');
-
-      if (textSpan) {
-        textSpan.textContent = originalText;
-      }
-      if (spinnerSpan) {
-        spinnerSpan.style.display = isLoading ? 'inline-block' : 'none';
+      } catch (err) {
+        console.warn('Could not sync user cloud library:', err.message);
       }
     }
 
@@ -2469,7 +1991,7 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
             this.dom.adminAddUserSuccess.style.display = 'none';
             submitBtn.disabled = true;
 
-            await window.ReadFluentSupabase.adminCreateUser(email, password, fullName, role);
+            await window.ReadFluentAPI.adminCreateUser(email, password, fullName, role);
 
             this.dom.adminAddUserSuccess.textContent = `User "${email}" successfully created with role: ${role}!`;
             this.dom.adminAddUserSuccess.style.display = 'block';
@@ -2516,7 +2038,7 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
           if (!this.userToDeleteId) return;
           try {
             this.dom.btnConfirmDeleteUser.disabled = true;
-            await window.ReadFluentSupabase.adminDeleteUser(this.userToDeleteId);
+            await window.ReadFluentAPI.adminDeleteUser(this.userToDeleteId);
             if (this.dom.adminConfirmDeleteModal) this.dom.adminConfirmDeleteModal.style.display = 'none';
             this.showToast('User account and all associated documents deleted.', 'success');
             this.userToDeleteId = null;
@@ -2531,7 +2053,7 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
     }
 
     openAdminModal() {
-      if (!window.ReadFluentSupabase || !window.ReadFluentSupabase.isAdmin()) {
+      if (!window.ReadFluentAPI || !window.ReadFluentAPI.isAdmin()) {
         this.showToast('Administrator privileges required to access console.', 'error');
         return;
       }
@@ -2552,14 +2074,14 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
       this.dom.adminTableLoading.style.display = 'flex';
 
       try {
-        const users = await window.ReadFluentSupabase.adminListUsers();
+        const users = await window.ReadFluentAPI.adminListUsers();
         this.adminUsersCache = users || [];
 
         // Update statistics ribbon
         const totalUsers = this.adminUsersCache.length;
         const totalAdmins = this.adminUsersCache.filter((u) => u.role === 'admin').length;
         const totalDocs = this.adminUsersCache.reduce((acc, u) => acc + (Number(u.document_count) || 0), 0);
-        const currentEmail = window.ReadFluentSupabase.getUser()?.email || 'admin';
+        const currentEmail = window.ReadFluentAPI.getUser()?.email || 'admin';
 
         if (this.dom.adminStatTotalUsers) this.dom.adminStatTotalUsers.textContent = totalUsers;
         if (this.dom.adminStatTotalDocs) this.dom.adminStatTotalDocs.textContent = totalDocs;
@@ -2600,7 +2122,7 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
         return;
       }
 
-      const currentUid = window.ReadFluentSupabase.getUser()?.id;
+      const currentUid = window.ReadFluentAPI.getUser()?.id;
 
       filtered.forEach((user) => {
         const tr = document.createElement('tr');
@@ -2667,7 +2189,7 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
             const newRole = user.role === 'admin' ? 'user' : 'admin';
             if (confirm(`Change role for ${user.email} to "${newRole}"?`)) {
               try {
-                await window.ReadFluentSupabase.adminUpdateUserRole(user.id, newRole);
+                await window.ReadFluentAPI.adminUpdateUserRole(user.id, newRole);
                 this.showToast(`Updated role for ${user.email} to ${newRole}`, 'success');
                 await this.loadAdminUsers();
               } catch (err) {
@@ -2697,7 +2219,7 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
       this.dom.adminUserDocsModal.style.display = 'flex';
 
       try {
-        const docs = await window.ReadFluentSupabase.adminGetUserDocuments(userId);
+        const docs = await window.ReadFluentAPI.adminGetUserDocuments(userId);
         if (!docs || docs.length === 0) {
           this.dom.inspectDocsList.innerHTML = `<div style="text-align:center;padding:18px;color:var(--text-muted);">No cloud documents saved by this user yet.</div>`;
           return;

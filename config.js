@@ -1,16 +1,13 @@
 /**
- * READ FLUENT — SUPABASE CONFIGURATION
- * 
- * Instructions:
- * 1. Create a project at https://supabase.com
- * 2. In your Supabase Project Settings -> API, copy:
- *    - Project URL -> SUPABASE_URL
- *    - anon public key -> SUPABASE_ANON_KEY
- * 3. Run the "supabase_schema.sql" file in your Supabase SQL Editor
- * 4. You can also configure or update these credentials directly from the app UI!
+ * READ FLUENT — CONFIGURATION PLACEHOLDER
+ *
+ * NOTE: For maximum security, all Supabase API keys and URLs are now kept
+ * strictly on the backend server in `.env`.
+ * No credentials are exposed to the client-side browser.
+ * See `.env.example` and `server.js` for details.
  */
 
 window.READFLUENT_CONFIG = {
-  SUPABASE_URL: '', // e.g. "https://xyzcompany.supabase.co"
-  SUPABASE_ANON_KEY: '' // e.g. "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  SUPABASE_URL: '',
+  SUPABASE_ANON_KEY: ''
 };
