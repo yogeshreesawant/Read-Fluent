@@ -1832,13 +1832,8 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
     /* ========================================================================
        USER SESSION & CLOUD SYNC CONTROLLERS
        ======================================================================== */
-    async initUserSession() {
-      // Strict Session Check: if not authenticated, redirect to login.html
-      if (!window.ReadFluentAPI || !window.ReadFluentAPI.isAuthenticated()) {
-        window.location.replace('login.html');
-        return;
-      }
-
+    updateProfileUI() {
+      if (!window.ReadFluentAPI) return;
       const user = window.ReadFluentAPI.getUser();
       const profile = window.ReadFluentAPI.getProfile();
       const userEmail = (user && user.email) || 'user@readfluent.com';
@@ -1883,6 +1878,29 @@ You can also switch to Fluent Reader Mode in the toolbar to follow along with sy
       if (this.dom.librarySyncText) {
         this.dom.librarySyncText.textContent = `Cloud Synced (${userEmail})`;
       }
+    }
+
+    async initUserSession() {
+      // Strict Session Check: if not authenticated, redirect to login.html
+      if (!window.ReadFluentAPI || !window.ReadFluentAPI.isAuthenticated()) {
+        window.location.replace('login.html');
+        return;
+      }
+
+      // Immediate render from local cache
+      this.updateProfileUI();
+
+      // Asynchronously fetch latest user profile & role from server
+      window.ReadFluentAPI.checkSession().then((user) => {
+        if (user) {
+          this.updateProfileUI();
+        }
+      }).catch((err) => {
+        console.warn('Profile refresh:', err);
+      });
+
+      const user = window.ReadFluentAPI.getUser();
+      const userEmail = (user && user.email) || 'user@readfluent.com';
       if (this.dom.btnLibrarySyncAction) {
         this.dom.btnLibrarySyncAction.textContent = 'Sign Out';
         this.dom.btnLibrarySyncAction.onclick = () => window.ReadFluentAPI.logout();

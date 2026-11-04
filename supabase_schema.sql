@@ -54,9 +54,55 @@ CREATE INDEX IF NOT EXISTS idx_documents_user_id ON public.documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_updated_at ON public.documents(updated_at DESC);
 
 -- ============================================================================
--- 4. ROW LEVEL SECURITY (RLS)
+-- 4. ROW LEVEL SECURITY (RLS) & HELPER FUNCTIONS
 -- Ensures strict user-wise isolation and grants admin oversight
 -- ============================================================================
+
+-- Helper: Security definer function to check if current user is an admin.
+-- Running with SECURITY DEFINER bypasses RLS and prevents infinite recursion!
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT COALESCE(
+    (SELECT role = 'admin' FROM public.profiles WHERE id = auth.uid()),
+    false
+  );
+$$;
+
+-- Helper: Security definer function to get the current user's profile safely.
+CREATE OR REPLACE FUNCTION public.get_my_profile()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+DECLARE
+  v_rec RECORD;
+BEGIN
+  SELECT id, email, full_name, avatar_url, role, created_at, updated_at
+  INTO v_rec
+  FROM public.profiles
+  WHERE id = auth.uid();
+
+  IF NOT FOUND THEN
+    RETURN json_build_object(
+      'id', auth.uid(),
+      'email', auth.jwt() ->> 'email',
+      'role', 'user'
+    );
+  END IF;
+
+  RETURN row_to_json(v_rec);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, anon;
 
 -- Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -68,11 +114,7 @@ CREATE POLICY "Users can view own profile or admins view all"
   ON public.profiles FOR SELECT
   TO authenticated
   USING (
-    auth.uid() = id 
-    OR EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
+    auth.uid() = id OR public.is_admin()
   );
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
@@ -88,11 +130,7 @@ CREATE POLICY "Users can select own documents or admins select all"
   ON public.documents FOR SELECT
   TO authenticated
   USING (
-    auth.uid() = user_id 
-    OR EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
+    auth.uid() = user_id OR public.is_admin()
   );
 
 DROP POLICY IF EXISTS "Users can insert own documents" ON public.documents;
@@ -113,11 +151,7 @@ CREATE POLICY "Users can delete own documents or admins delete any"
   ON public.documents FOR DELETE
   TO authenticated
   USING (
-    auth.uid() = user_id 
-    OR EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
+    auth.uid() = user_id OR public.is_admin()
   );
 
 -- ============================================================================
@@ -181,10 +215,7 @@ CREATE POLICY "Users can view their own files"
     bucket_id = 'user_documents'
     AND (
       (storage.foldername(name))[1] = auth.uid()::text
-      OR EXISTS (
-        SELECT 1 FROM public.profiles 
-        WHERE id = auth.uid() AND role = 'admin'
-      )
+      OR public.is_admin()
     )
   );
 
@@ -197,10 +228,7 @@ CREATE POLICY "Users can delete their own files"
     bucket_id = 'user_documents'
     AND (
       (storage.foldername(name))[1] = auth.uid()::text
-      OR EXISTS (
-        SELECT 1 FROM public.profiles 
-        WHERE id = auth.uid() AND role = 'admin'
-      )
+      OR public.is_admin()
     )
   );
 
@@ -226,10 +254,7 @@ SET search_path = public, auth
 AS $$
 BEGIN
   -- Verify caller is an admin
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  ) THEN
+  IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Access denied. Administrator privileges required.';
   END IF;
 
@@ -268,10 +293,7 @@ DECLARE
   v_result JSONB;
 BEGIN
   -- Verify caller is an admin
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  ) THEN
+  IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Access denied. Administrator privileges required.';
   END IF;
 
@@ -351,10 +373,7 @@ SET search_path = public, auth
 AS $$
 BEGIN
   -- Verify caller is an admin
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  ) THEN
+  IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Access denied. Administrator privileges required.';
   END IF;
 
@@ -379,10 +398,7 @@ SET search_path = public, auth
 AS $$
 BEGIN
   -- Verify caller is an admin
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  ) THEN
+  IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Access denied. Administrator privileges required.';
   END IF;
 
@@ -423,10 +439,7 @@ SET search_path = public, auth
 AS $$
 BEGIN
   -- Verify caller is an admin
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  ) THEN
+  IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Access denied. Administrator privileges required.';
   END IF;
 

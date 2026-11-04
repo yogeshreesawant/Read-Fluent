@@ -149,6 +149,35 @@ async function getAuthUser(token) {
   });
 }
 
+// Helper: fetch user profile with role safely (tries RPC get_my_profile first, then direct query)
+async function fetchUserProfile(userId, email, token) {
+  try {
+    const rpcProfile = await callSupabase('/rest/v1/rpc/get_my_profile', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: {}
+    });
+    if (rpcProfile && rpcProfile.id) {
+      return rpcProfile;
+    }
+  } catch (rpcErr) {
+    // Fall back to direct table select
+  }
+
+  try {
+    const profiles = await callSupabase(`/rest/v1/profiles?id=eq.${userId}&select=*`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (profiles && profiles[0]) {
+      return profiles[0];
+    }
+  } catch (tableErr) {
+    console.error(`Profile fetch warning for user ${email}:`, tableErr.message);
+  }
+
+  return { id: userId, email: email, role: 'user' };
+}
+
 // Helper: serve static files
 function serveStaticFile(req, res, filePath) {
   let cleanPath = decodeURIComponent(filePath.split('?')[0]);
@@ -272,15 +301,7 @@ const server = http.createServer(async (req, res) => {
         });
 
         // Retrieve user profile to include role
-        let profile = null;
-        try {
-          const profiles = await callSupabase(`/rest/v1/profiles?id=eq.${data.user.id}&select=*`, {
-            headers: { 'Authorization': `Bearer ${data.access_token}` }
-          });
-          profile = profiles && profiles[0] ? profiles[0] : null;
-        } catch (e) {
-          profile = { id: data.user.id, email: data.user.email, role: 'user' };
-        }
+        const profile = await fetchUserProfile(data.user.id, data.user.email, data.access_token);
 
         return sendJson(res, 200, {
           access_token: data.access_token,
@@ -299,15 +320,7 @@ const server = http.createServer(async (req, res) => {
         if (!user) return sendJson(res, 401, { error: 'Invalid or expired session' });
 
         // Get user profile with role
-        let profile = null;
-        try {
-          const profiles = await callSupabase(`/rest/v1/profiles?id=eq.${user.id}&select=*`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          profile = profiles && profiles[0] ? profiles[0] : null;
-        } catch (e) {
-          profile = { id: user.id, email: user.email, role: 'user' };
-        }
+        const profile = await fetchUserProfile(user.id, user.email, token);
 
         return sendJson(res, 200, { user, profile });
       }
