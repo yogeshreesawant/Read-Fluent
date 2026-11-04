@@ -786,6 +786,37 @@
       this.dom.timeTotal.textContent = this.formatTime(totalMinutes * 60);
     }
 
+    splitSentences(text) {
+      if (!text || typeof text !== 'string') return [];
+      const trimmed = text.trim();
+      if (!trimmed) return [];
+
+      // 1. Modern Standard: Intl.Segmenter (handles quotes, dialogue, punctuation per Unicode TR29)
+      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+        try {
+          const segmenter = new Intl.Segmenter('en', { granularity: 'sentence' });
+          const segments = Array.from(segmenter.segment(trimmed));
+          const sentences = segments
+            .map((s) => s.segment.trim())
+            .filter((s) => s.length > 0);
+          if (sentences.length > 0) {
+            return sentences;
+          }
+        } catch (e) {
+          console.warn('Intl.Segmenter fallback to regex:', e);
+        }
+      }
+
+      // 2. High-precision regex fallback supporting dialogue quotes (" ' ” ’ » ), brackets, and ellipses
+      const closingQuotes = `['"”’»\\)\\]\\}]*`;
+      const pattern = new RegExp(
+        `[^.!?\\n]+[.!?]+${closingQuotes}(?:\\s+|\\n+|$)|[^.!?\\n]+(?:\\n+|$)`,
+        'g'
+      );
+      const matches = trimmed.match(pattern) || [trimmed];
+      return matches.map((s) => s.trim()).filter((s) => s.length > 0);
+    }
+
     parseSentencesFromText() {
       const text = this.dom.textContent.value.trim();
       if (!text) {
@@ -796,8 +827,7 @@
         return;
       }
 
-      const rawSentences = text.match(/[^.!?\n]+[.!?]+(?:\s+|\n+|$)|[^.!?\n]+(?:\n+|$)/g) || [text];
-      this.sentences = rawSentences.map((s) => s.trim()).filter((s) => s.length > 0);
+      this.sentences = this.splitSentences(text);
 
       this.speech.setSentences(this.sentences);
       this.renderFluentSentences();
