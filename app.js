@@ -108,6 +108,41 @@
   /* ==========================================================================
      2. SPEECH SYNTHESIS ENGINE (ZERO-LAG & CHROME TIMEOUT FIX)
      ========================================================================== */
+
+  // Global Utterance pin to permanently prevent V8/WebKit GC from dropping onend/onerror callbacks
+  window._rfActiveUtterances = window._rfActiveUtterances || [];
+
+  /**
+   * Mobile Audio Session Hardware Keeper
+   * Primes Web Audio hardware on user gesture so consecutive SpeechSynthesis
+   * utterances are never throttled, muted, or frozen by mobile OS power-savers.
+   */
+  class MobileAudioSession {
+    static unlock() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!this.ctx) {
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+        // Brief inaudible audio packet that unlocks continuous mobile playback
+        if (!this.unlocked) {
+          const buffer = this.ctx.createBuffer(1, 1, 22050);
+          const source = this.ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(this.ctx.destination);
+          source.start(0);
+          this.unlocked = true;
+        }
+      } catch (e) {
+        // Safe fallback if Web Audio is restricted
+      }
+    }
+  }
+
   class SpeechEngine {
     constructor(options = {}) {
       this.synth = window.speechSynthesis;
@@ -118,7 +153,9 @@
       this.speed = 1.0;
       this.voice = null;
       this.currentUtterance = null;
+      this.watchdogTimer = null;
       this.wakeInterval = null;
+      this.isAdvancing = false;
       this.onSentenceChange = options.onSentenceChange || (() => {});
       this.onWordBoundary = options.onWordBoundary || (() => {});
       this.onStateChange = options.onStateChange || (() => {});
@@ -127,29 +164,34 @@
 
     setSentences(sentences) {
       this.stop();
-      this.sentences = sentences;
+      this.sentences = sentences || [];
       this.currentIndex = 0;
     }
 
     setSpeed(newSpeed) {
       this.speed = parseFloat(newSpeed) || 1.0;
       if (this.isPlaying && !this.isPaused && this.sentences.length > 0) {
-        this.speakCurrent(true);
+        this.speakCurrent(false);
       }
     }
 
     setVoice(voice) {
       this.voice = voice;
       if (this.isPlaying && !this.isPaused && this.sentences.length > 0) {
-        this.speakCurrent(true);
+        this.speakCurrent(false);
       }
     }
 
     play() {
       if (!this.sentences || this.sentences.length === 0) return;
 
+      // Unlock mobile audio pipeline on user touch/click
+      MobileAudioSession.unlock();
+
       if (this.isPaused) {
-        this.synth.resume();
+        if (this.synth) {
+          this.synth.resume();
+        }
         this.isPaused = false;
         this.isPlaying = true;
         this.startKeepAlive();
@@ -161,25 +203,33 @@
       this.isPaused = false;
       this.startKeepAlive();
       this.onStateChange({ isPlaying: true, isPaused: false });
-      this.speakCurrent();
+      this.speakCurrent(false);
     }
 
     pause() {
       if (!this.isPlaying) return;
-      this.synth.pause();
-      this.isPaused = true;
+      this.clearWatchdog();
       this.stopKeepAlive();
+      if (this.synth) {
+        this.synth.pause();
+      }
+      this.isPaused = true;
       this.onStateChange({ isPlaying: false, isPaused: true });
     }
 
     stop() {
+      this.clearWatchdog();
       this.stopKeepAlive();
       if (this.synth) {
-        this.synth.cancel();
+        try {
+          this.synth.cancel();
+        } catch (e) {}
       }
       this.isPlaying = false;
       this.isPaused = false;
+      this.isAdvancing = false;
       this.currentUtterance = null;
+      window._rfActiveUtterances = [];
       this.onStateChange({ isPlaying: false, isPaused: false });
     }
 
@@ -190,7 +240,7 @@
       this.onSentenceChange(this.currentIndex, this.sentences.length);
 
       if (this.isPlaying) {
-        this.speakCurrent(true);
+        this.speakCurrent(false);
       }
     }
 
@@ -222,8 +272,17 @@
       this.seekToIndex(targetSentence);
     }
 
+    clearWatchdog() {
+      if (this.watchdogTimer) {
+        clearTimeout(this.watchdogTimer);
+        this.watchdogTimer = null;
+      }
+    }
+
     speakCurrent(seamless = false) {
       if (!this.synth) return;
+      this.clearWatchdog();
+
       if (this.currentIndex >= this.sentences.length) {
         this.stop();
         this.currentIndex = 0;
@@ -238,14 +297,51 @@
         return;
       }
 
-      this.synth.cancel();
+      // If interrupted by a user seek/stop, cancel previous audio.
+      // BUT if moving sequentially from sentence to sentence (seamless = true),
+      // DO NOT call cancel()! Calling cancel() destroys the WebKit/Mobile audio session.
+      if (!seamless) {
+        try {
+          this.synth.cancel();
+        } catch (e) {}
+      }
 
       const utterance = new SpeechSynthesisUtterance(text);
       if (this.voice) utterance.voice = this.voice;
       utterance.rate = this.speed;
       utterance.pitch = 1.0;
 
+      // Pin reference to protect from garbage collection on mobile browsers
+      window._rfActiveUtterances.push(utterance);
+      if (window._rfActiveUtterances.length > 5) {
+        window._rfActiveUtterances.shift();
+      }
+
+      const advanceToNext = () => {
+        if (!this.isPlaying || this.isPaused || this.isAdvancing) return;
+        this.isAdvancing = true;
+        this.clearWatchdog();
+
+        // Release GC pin for this utterance
+        const idx = window._rfActiveUtterances.indexOf(utterance);
+        if (idx > -1) window._rfActiveUtterances.splice(idx, 1);
+
+        this.currentIndex++;
+        if (this.currentIndex < this.sentences.length) {
+          setTimeout(() => {
+            this.isAdvancing = false;
+            this.speakCurrent(true);
+          }, 10);
+        } else {
+          this.isAdvancing = false;
+          this.stop();
+          this.currentIndex = 0;
+          this.onComplete();
+        }
+      };
+
       utterance.onstart = () => {
+        this.isAdvancing = false;
         this.onSentenceChange(this.currentIndex, this.sentences.length);
       };
 
@@ -256,30 +352,46 @@
       };
 
       utterance.onend = () => {
-        if (!this.isPlaying || this.isPaused) return;
-        this.currentIndex++;
-        if (this.currentIndex < this.sentences.length) {
-          this.speakCurrent();
-        } else {
-          this.stop();
-          this.currentIndex = 0;
-          this.onComplete();
-        }
+        advanceToNext();
       };
 
       utterance.onerror = (e) => {
         if (e.error !== 'interrupted' && e.error !== 'canceled') {
           console.warn('Speech synthesis notice:', e.error);
         }
+        advanceToNext();
       };
 
       this.currentUtterance = utterance;
-      this.synth.speak(utterance);
+
+      // Automatic Watchdog Timer:
+      // Prevents endless buffering/freezing if mobile voice stalls or drops onend
+      const wordCount = (text.match(/\S+/g) || []).length;
+      const wordsPerSec = Math.max(1, (150 * this.speed) / 60);
+      const expectedMs = (wordCount / wordsPerSec) * 1000;
+      const safetyTimeoutMs = Math.max(3500, expectedMs * 1.5 + 2500);
+
+      this.watchdogTimer = setTimeout(() => {
+        if (this.isPlaying && !this.isPaused && this.currentUtterance === utterance) {
+          console.warn('Speech watchdog: advancing after timeout');
+          advanceToNext();
+        }
+      }, safetyTimeoutMs);
+
+      try {
+        this.synth.speak(utterance);
+      } catch (err) {
+        console.warn('Synth speak error:', err);
+        advanceToNext();
+      }
     }
 
-    // Chrome 15s freeze workaround
+    // Chrome desktop 15s freeze workaround (skipped on mobile to prevent audio thread deadlock)
     startKeepAlive() {
       this.stopKeepAlive();
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      if (isMobile) return;
+
       this.wakeInterval = setInterval(() => {
         if (this.isPlaying && !this.isPaused && this.synth && this.synth.speaking) {
           this.synth.pause();
@@ -528,6 +640,11 @@
         btnMenuOpenAdmin: document.getElementById('btnMenuOpenAdmin'),
         btnHeaderAdmin: document.getElementById('btnHeaderAdmin'),
         btnMenuSignOut: document.getElementById('btnMenuSignOut'),
+        btnInstallApp: document.getElementById('btnInstallApp'),
+        btnMenuInstallApp: document.getElementById('btnMenuInstallApp'),
+        pwaInstallGuideModal: document.getElementById('pwaInstallGuideModal'),
+        btnClosePwaGuide: document.getElementById('btnClosePwaGuide'),
+        btnDismissPwaGuide: document.getElementById('btnDismissPwaGuide'),
 
         // Admin Dashboard Elements
         adminModal: document.getElementById('adminModal'),
@@ -591,6 +708,7 @@
     init() {
       this.initTheme();
       this.initVoices();
+      this.initPwa();
       this.bindEvents();
       this.initUserSession();
       this.initAdminDashboard();
@@ -615,6 +733,71 @@
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('readfluent_theme', next);
         this.showToast(`Switched to ${next} theme`, 'info');
+      });
+    }
+
+    /* ========================================================================
+       PROGRESSIVE WEB APP (PWA) MOBILE INSTALLATION
+       ======================================================================== */
+    initPwa() {
+      this.deferredInstallPrompt = null;
+      const btnHeader = this.dom.btnInstallApp;
+      const btnMenu = this.dom.btnMenuInstallApp;
+      const modal = this.dom.pwaInstallGuideModal;
+      const btnClose = this.dom.btnClosePwaGuide;
+      const btnDismiss = this.dom.btnDismissPwaGuide;
+
+      // Capture beforeinstallprompt for Android Chrome / Chromium
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        this.deferredInstallPrompt = e;
+        if (btnHeader) btnHeader.style.display = 'inline-flex';
+        if (btnMenu) btnMenu.style.display = 'flex';
+      });
+
+      const triggerInstall = async () => {
+        if (this.deferredInstallPrompt) {
+          try {
+            this.deferredInstallPrompt.prompt();
+            const { outcome } = await this.deferredInstallPrompt.userChoice;
+            if (outcome === 'accepted') {
+              this.showToast('Read Fluent installed successfully!', 'success');
+              if (btnHeader) btnHeader.style.display = 'none';
+            }
+          } catch (err) {
+            console.warn('Install prompt error:', err);
+          }
+          this.deferredInstallPrompt = null;
+        } else {
+          // Non-automated browser (iOS Safari, desktop Safari, Firefox, installed app)
+          if (modal) modal.style.display = 'flex';
+        }
+      };
+
+      if (btnHeader) {
+        btnHeader.addEventListener('click', triggerInstall);
+      }
+      if (btnMenu) {
+        btnMenu.addEventListener('click', () => {
+          if (this.dom.userDropdownPopover) this.dom.userDropdownPopover.style.display = 'none';
+          triggerInstall();
+        });
+      }
+      if (btnClose) {
+        btnClose.addEventListener('click', () => {
+          if (modal) modal.style.display = 'none';
+        });
+      }
+      if (btnDismiss) {
+        btnDismiss.addEventListener('click', () => {
+          if (modal) modal.style.display = 'none';
+        });
+      }
+
+      window.addEventListener('appinstalled', () => {
+        this.showToast('Read Fluent is installed on your device!', 'success');
+        if (btnHeader) btnHeader.style.display = 'none';
+        this.deferredInstallPrompt = null;
       });
     }
 

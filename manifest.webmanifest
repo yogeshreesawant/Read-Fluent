@@ -1,0 +1,36 @@
+{
+  "name": "Read Fluent — AI Speech & Document Studio",
+  "short_name": "Read Fluent",
+  "description": "High-Performance AI Text-to-Speech & Document Reader. Zero lag, instant voice playback, seek scrubbing, and cloud library.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0d14",
+  "theme_color": "#6366f1",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "education",
+    "utilities"
+  ]
+}

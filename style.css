@@ -1600,34 +1600,55 @@ html, body {
 /* ==========================================================================
    RESPONSIVE DESIGN BREAKPOINTS
    ========================================================================== */
+/* Viewport safety for mobile */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  -webkit-text-size-adjust: 100%;
+}
+
+.app-container {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
 @media (max-width: 1024px) {
   .controls-row {
     flex-wrap: wrap;
     justify-content: center;
+    gap: 12px;
   }
   .controls-left {
     order: 2;
     max-width: 100%;
-    flex: auto;
+    flex: 1 1 280px;
   }
   .controls-center {
     order: 1;
     width: 100%;
+    justify-content: center;
   }
   .controls-right {
     order: 3;
     width: 100%;
     justify-content: center;
+    flex: 1 1 280px;
   }
   .main-workspace {
-    padding-bottom: 180px;
+    padding-bottom: 210px;
   }
 }
 
-@media (max-width: 640px) {
+/* Tablets and Mobile Phones (< 768px) */
+@media (max-width: 768px) {
   .top-header {
-    padding: 0 14px;
-    height: 60px;
+    padding: 0 12px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
   .header-center {
     display: none;
@@ -1635,29 +1656,223 @@ html, body {
   .brand-tagline {
     display: none;
   }
-  .main-workspace {
-    padding: 12px 14px;
-    padding-bottom: 220px;
+  .brand-title {
+    font-size: 1.15rem;
   }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Compact icon-only buttons on mobile so nothing overflows */
+  #btnUpload span,
+  #btnDownload span,
+  #btnHeaderAdmin span,
+  #btnInstallApp .btn-label-text {
+    display: none;
+  }
+  #btnUpload,
+  #btnDownload,
+  #btnHeaderAdmin,
+  #btnInstallApp {
+    padding: 8px 10px;
+    min-width: 38px;
+    height: 38px;
+    justify-content: center;
+  }
+
+  /* Compact User Profile Menu on mobile */
+  .user-menu-trigger {
+    padding: 4px 8px;
+    gap: 4px;
+    max-width: 60px;
+  }
+  .user-email-snippet,
+  .user-role-tag {
+    display: none !important;
+  }
+
+  .header-divider-v {
+    margin: 0 2px;
+  }
+
+  /* Workspace */
+  .main-workspace {
+    padding: 10px 12px;
+    padding-bottom: 240px; /* Keep bottom buffer so fixed player dock doesn't cover text */
+  }
+
   .editor-toolbar {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 10px;
   }
+
+  .toolbar-left {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .view-mode-tabs {
+    width: 100%;
+    display: flex;
+  }
+
+  .tab-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+
+  .doc-title-display {
+    font-size: 0.82rem;
+    max-width: 100%;
+  }
+
   .toolbar-right {
     width: 100%;
-    justify-content: space-between;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-start;
   }
+
+  .tool-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 7px 10px;
+    font-size: 0.78rem;
+  }
+
+  /* Bottom Player Dock */
   .player-dock {
-    padding: 10px 14px;
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
+
+  .sleek-scrubber-row {
+    gap: 8px;
+  }
+
+  .time-display {
+    min-width: 38px;
+    font-size: 0.72rem;
+  }
+
+  .sentence-counter-badge {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+
+  .controls-row {
+    gap: 10px;
+  }
+
+  .controls-center {
+    order: 1;
+    width: 100%;
+    gap: 10px;
+  }
+
   .btn-skip .skip-label {
     display: none;
   }
+
   .btn-skip {
-    padding: 8px 10px;
+    padding: 8px 12px;
   }
+
+  .btn-play-master {
+    width: 48px;
+    height: 48px;
+  }
+
+  .btn-stop {
+    width: 38px;
+    height: 38px;
+  }
+
+  .controls-left {
+    order: 2;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .voice-selector-wrap {
+    width: 100%;
+  }
+
+  .sleek-select {
+    max-width: 100%;
+    width: 100%;
+    font-size: 0.78rem;
+  }
+
+  .controls-right {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .speed-control-container {
-    min-width: 100%;
+    width: 100%;
+  }
+
+  /* Modals on Mobile */
+  .modal-card {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 88vh;
+    padding: 18px 16px;
+  }
+}
+
+/* Extra Small Mobile Screens (< 480px) */
+@media (max-width: 480px) {
+  .top-header {
+    padding: 0 8px;
+  }
+  .brand-title {
+    font-size: 1.05rem;
+  }
+  .logo-icon-wrap {
+    width: 32px;
+    height: 32px;
+  }
+  .logo-svg {
+    width: 32px;
+    height: 32px;
+  }
+  .header-right {
+    gap: 4px;
+  }
+  .btn-icon {
+    width: 34px;
+    height: 34px;
+  }
+  #btnUpload,
+  #btnDownload,
+  #btnHeaderAdmin,
+  #btnInstallApp {
+    padding: 6px 8px;
+    min-width: 34px;
+    height: 34px;
+  }
+  .main-workspace {
+    padding: 8px;
+    padding-bottom: 250px;
+  }
+  .editor-pane {
+    font-size: 0.95rem;
+    padding: 12px;
+  }
+  .fluent-reading-pane {
+    font-size: 1.05rem;
+    padding: 12px;
   }
 }
 
@@ -2984,4 +3199,87 @@ html, body {
 .btn-header-admin:hover {
   transform: translateY(-1px);
   box-shadow: 0 0 22px rgba(139, 92, 246, 0.55);
+}
+
+/* ==========================================================================
+   PWA GUIDE MODAL STYLES (iOS & MOBILE DOWNLOAD ASSISTANT)
+   ========================================================================== */
+.pwa-guide-modal-card {
+  max-width: 480px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(99, 102, 241, 0.2);
+}
+
+.pwa-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pwa-header-brand h3 {
+  font-family: var(--font-brand);
+  font-size: 1.25rem;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.pwa-guide-subtitle {
+  font-size: 0.76rem;
+  color: var(--accent-primary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pwa-guide-body {
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pwa-guide-intro {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.pwa-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pwa-step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-secondary);
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.pwa-step-badge {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--accent-gradient);
+  color: #ffffff;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.pwa-step-content {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.pwa-step-content strong {
+  color: var(--text-primary);
 }

@@ -11,6 +11,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   
+  <!-- Progressive Web App (PWA) & Mobile Manifest -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Read Fluent">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <meta name="theme-color" content="#6366f1">
+  
   <!-- PDF.js for client-side PDF text extraction -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- Mammoth.js for client-side Word (.docx) text extraction -->
@@ -130,6 +140,16 @@
           </svg>
         </button>
 
+        <!-- Install App Button (Visible on mobile/desktop browsers supporting PWA) -->
+        <button class="btn btn-secondary btn-install-app" id="btnInstallApp" style="display: none;" title="Install Read Fluent on your device">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span class="btn-label-text">Install App</span>
+        </button>
+
         <div class="header-divider-v"></div>
 
         <!-- Direct Header Admin Button (Visible only to Admins) -->
@@ -174,6 +194,13 @@
               </svg>
               <span>Admin Management</span>
               <span class="admin-spark-badge">Admin</span>
+            </button>
+            <button class="dropdown-item" id="btnMenuInstallApp" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                <line x1="12" y1="18" x2="12.01" y2="18"/>
+              </svg>
+              <span>Download Mobile App</span>
             </button>
             <div class="dropdown-divider"></div>
             <button class="dropdown-item text-danger" id="btnMenuSignOut" role="menuitem">
@@ -712,7 +739,64 @@
 
     <!-- Toast Notification Container -->
     <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+    <!-- ======================================================================
+         PWA MOBILE INSTALL INSTRUCTION MODAL (FOR iOS & NON-AUTOMATIC BROWSERS)
+         ====================================================================== -->
+    <div class="modal-overlay" id="pwaInstallGuideModal" style="display:none;" role="dialog" aria-modal="true">
+      <div class="modal-card pwa-guide-modal-card">
+        <div class="modal-card-header">
+          <div class="pwa-header-brand">
+            <img src="icons/icon-192.png" width="44" height="44" alt="Read Fluent" style="border-radius: 10px;" />
+            <div>
+              <h3>Install Read Fluent App</h3>
+              <span class="pwa-guide-subtitle">Full-Screen Mobile & Desktop App</span>
+            </div>
+          </div>
+          <button class="btn-icon modal-close-btn" id="btnClosePwaGuide" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="pwa-guide-body">
+          <p class="pwa-guide-intro">
+            Install Read Fluent for a 100% native app experience: full screen, zero URL bars, instant launch, and seamless background audio!
+          </p>
+          <div class="pwa-steps-list">
+            <div class="pwa-step-row">
+              <span class="pwa-step-badge">iOS</span>
+              <div class="pwa-step-content">
+                <strong>iPhone / iPad Safari:</strong> Tap the <strong>Share</strong> button <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>, scroll down and tap <strong>Add to Home Screen</strong> <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>.
+              </div>
+            </div>
+            <div class="pwa-step-row">
+              <span class="pwa-step-badge">Android</span>
+              <div class="pwa-step-content">
+                <strong>Android Chrome:</strong> Tap the menu <strong>(⋮)</strong> and tap <strong>Install App</strong> or <strong>Add to Home screen</strong>.
+              </div>
+            </div>
+            <div class="pwa-step-row">
+              <span class="pwa-step-badge">PC / Mac</span>
+              <div class="pwa-step-content">
+                <strong>Chrome / Edge:</strong> Click the <strong>Install</strong> icon in the address bar.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-card-footer">
+          <button class="btn btn-primary" id="btnDismissPwaGuide" style="width: 100%;">Understood</button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((e) => {
+          console.warn('PWA service worker registration notice:', e);
+        });
+      });
+    }
+  </script>
 
   <script src="app.js"></script>
 </body>

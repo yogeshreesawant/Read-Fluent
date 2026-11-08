@@ -51,6 +51,7 @@ const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
@@ -216,10 +217,19 @@ function serveStaticFile(req, res, filePath) {
     const ext = path.extname(resolvedPath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
-    res.writeHead(200, {
+    const headers = {
       'Content-Type': contentType,
       'Content-Length': stats.size
-    });
+    };
+
+    if (baseName === 'sw.js') {
+      headers['Service-Worker-Allowed'] = '/';
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    } else if (ext === '.webmanifest') {
+      headers['Cache-Control'] = 'no-cache';
+    }
+
+    res.writeHead(200, headers);
 
     const stream = fs.createReadStream(resolvedPath);
     stream.pipe(res);
